@@ -37,7 +37,41 @@ export function registerSprintCommand(program) {
                 // Using full path:
                 const match = jiraUrl.match(/^https?:\/\/(.+?)(\/|$)/);
                 const domain = match ? match[0].replace(/\/$/, '') : jiraUrl;
-                const fullUrl = `${domain}/rest/agile/1.0/board/${options.board}/sprint?state=${options.state}`;
+
+                let boardId = options.board;
+
+                // If board option is not a number, try to look it up using the Board Name/Key
+                if (isNaN(boardId)) {
+                    spinner.text = `Looking up board "${options.board}"...`;
+                    const boardSearchUrl = `${domain}/rest/agile/1.0/board?name=${encodeURIComponent(options.board)}`;
+                    const boardData = await api.get(boardSearchUrl);
+
+                    if (!boardData.values || boardData.values.length === 0) {
+                        // Fallback: It might be a project key. Let's try searching for boards associated with this project.
+                        // But the API doesn't support projectKey filter directly on /board easily without iterating.
+                        // For now, fail if name match doesn't work.
+                        throw new Error(`Board with name "${options.board}" not found. Please provide the numeric Board ID.`);
+                    }
+
+                    // Strict match or pick first? Let's pick the first one but warn if multiple
+                    if (boardData.values.length > 1) {
+                        // Try to find exact match
+                        const exact = boardData.values.find(b => b.name.toLowerCase() === options.board.toLowerCase());
+                        if (exact) {
+                            boardId = exact.id;
+                        } else {
+                            // Just pick first? Or error?
+                            // Let's pick first but log
+                            console.log(chalk.yellow(`\nMultiple boards found for "${options.board}". Using "${boardData.values[0].name}" (ID: ${boardData.values[0].id}).`));
+                            boardId = boardData.values[0].id;
+                        }
+                    } else {
+                        boardId = boardData.values[0].id;
+                    }
+                    spinner.text = `Fetching sprints for board ${options.board} (ID: ${boardId})...`;
+                }
+
+                const fullUrl = `${domain}/rest/agile/1.0/board/${boardId}/sprint?state=${options.state}`;
 
                 const data = await api.get(fullUrl);
                 spinner.stop();

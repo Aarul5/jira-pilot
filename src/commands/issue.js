@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { table } from 'table';
 import { api } from '../services/api-service.js';
 import ora from 'ora';
+import { parseADF } from '../utils/adf-parser.js';
 
 export function registerIssueCommand(program) {
     const issueCmd = new Command('issue')
@@ -40,7 +41,7 @@ export function registerIssueCommand(program) {
                 const body = {
                     jql: jql || 'created is not empty',
                     maxResults: parseInt(options.limit),
-                    fields: ['summary', 'status', 'assignee', 'created', 'updated']
+                    fields: ['summary', 'status', 'assignee', 'created', 'updated', 'description']
                 };
 
                 const data = await api.post(searchApi, body);
@@ -84,7 +85,7 @@ export function registerIssueCommand(program) {
                 }
 
                 const tableData = [
-                    [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee')]
+                    [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee'), chalk.bold('Created'), chalk.bold('Updated')]
                 ];
 
                 data.issues.forEach(i => {
@@ -92,7 +93,9 @@ export function registerIssueCommand(program) {
                         chalk.cyan(i.key),
                         i.fields.summary ? (i.fields.summary.length > 50 ? i.fields.summary.substring(0, 47) + '...' : i.fields.summary) : '',
                         i.fields.status ? i.fields.status.name : '',
-                        i.fields.assignee ? i.fields.assignee.displayName : 'Unassigned'
+                        i.fields.assignee ? i.fields.assignee.displayName : 'Unassigned',
+                        i.fields.created ? i.fields.created.split('T')[0] : '',
+                        i.fields.updated ? i.fields.updated.split('T')[0] : ''
                     ]);
                 });
 
@@ -121,7 +124,7 @@ export function registerIssueCommand(program) {
                 console.log(chalk.bold(`\n${issue.key}: ${issue.fields.summary}`));
                 console.log(chalk.grey(`${issue.fields.issuetype.name} - ${issue.fields.status.name} - ${issue.fields.priority ? issue.fields.priority.name : 'No Priority'}`));
                 console.log(chalk.bold('\nDescription:'));
-                console.log(issue.fields.description || 'No description provided.');
+                console.log(parseADF(issue.fields.description) || 'No description provided.');
 
                 if (issue.fields.assignee) {
                     console.log(chalk.bold('\nAssignee: ') + issue.fields.assignee.displayName);
