@@ -81,6 +81,10 @@ jira issue view PROJ-123
 
 # Transition status (interactive)
 jira issue transition PROJ-123
+
+# Export issues to file
+jira issue list --export json  # Creates issues-TIMESTAMP.json
+jira issue list --export md    # Creates issues-TIMESTAMP.md
 ```
 
 ### Projects & Sprints

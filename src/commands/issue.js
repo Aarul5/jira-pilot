@@ -16,6 +16,7 @@ export function registerIssueCommand(program) {
         .option('-p, --project <key>', 'Filter by project')
         .option('-a, --assignee <id>', 'Filter by assignee (use "currentUser" for self)')
         .option('-s, --status <status>', 'Filter by status')
+        .option('-e, --export <format>', 'Export output (json, md)')
         .action(async (options) => {
             const spinner = ora('Fetching issues...').start();
             try {
@@ -48,6 +49,38 @@ export function registerIssueCommand(program) {
                 if (!data.issues || data.issues.length === 0) {
                     console.log(chalk.yellow('No issues found.'));
                     return;
+                }
+
+                // Handling Export
+                if (options.export) {
+                    const fs = await import('fs');
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+                    if (options.export === 'json') {
+                        const filename = `issues-${timestamp}.json`;
+                        fs.writeFileSync(filename, JSON.stringify(data.issues, null, 2));
+                        console.log(chalk.green(`\nExported ${data.issues.length} issues to ${chalk.bold(filename)}`));
+                        return;
+                    }
+
+                    if (options.export === 'md') {
+                        const filename = `issues-${timestamp}.md`;
+                        let mdContent = `# Jira Issues Export\nGenerated: ${new Date().toLocaleString()}\n\n`;
+                        mdContent += `| Key | Summary | Status | Assignee |\n`;
+                        mdContent += `|---|---|---|---|\n`;
+
+                        data.issues.forEach(i => {
+                            const key = i.key;
+                            const summary = i.fields.summary || '';
+                            const status = i.fields.status?.name || '';
+                            const assignee = i.fields.assignee?.displayName || 'Unassigned';
+                            mdContent += `| ${key} | ${summary} | ${status} | ${assignee} |\n`;
+                        });
+
+                        fs.writeFileSync(filename, mdContent);
+                        console.log(chalk.green(`\nExported ${data.issues.length} issues to ${chalk.bold(filename)}`));
+                        return;
+                    }
                 }
 
                 const tableData = [
