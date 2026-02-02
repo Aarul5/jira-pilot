@@ -19,6 +19,14 @@
         "mcp"
     ],
     "author": "Arul",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Aarul5/jira-pilot.git"
+    },
+    "bugs": {
+        "url": "https://github.com/Aarul5/jira-pilot/issues"
+    },
+    "homepage": "https://github.com/Aarul5/jira-pilot#readme",
     "license": "ISC",
     "dependencies": {
         "@modelcontextprotocol/sdk": "^0.6.0",
