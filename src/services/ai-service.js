@@ -5,10 +5,14 @@ export class AiService {
     constructor() { }
 
     async generate(prompt) {
-        const { aiKey, aiProvider } = getCredentials();
+        const { aiKey, aiProvider, aiEnabled } = getCredentials();
+
+        if (!aiEnabled) {
+            throw new Error('AI features are disabled. Run "jira config ai enable" to enable.');
+        }
 
         if (!aiKey) {
-            throw new Error('AI API Key not configured. Run "jira config setup" or manually set it in config.');
+            throw new Error('AI API Key not configured. Run "jira config ai enable" or "jira config setup".');
         }
 
         // Basic implementation for OpenAI - extensible for others

@@ -18,6 +18,10 @@ const schema = {
     aiProvider: {
         type: 'string',
         default: 'openai'
+    },
+    aiEnabled: {
+        type: 'boolean',
+        default: false
     }
 };
 
@@ -32,16 +36,18 @@ export const getCredentials = () => {
         email: config.get('email'),
         apiToken: config.get('apiToken'),
         aiKey: config.get('aiKey'),
-        aiProvider: config.get('aiProvider')
+        aiProvider: config.get('aiProvider'),
+        aiEnabled: config.get('aiEnabled')
     };
 };
 
-export const setCredentials = ({ jiraUrl, email, apiToken, aiKey, aiProvider }) => {
+export const setCredentials = ({ jiraUrl, email, apiToken, aiKey, aiProvider, aiEnabled }) => {
     if (jiraUrl) config.set('jiraUrl', jiraUrl);
     if (email) config.set('email', email);
     if (apiToken) config.set('apiToken', apiToken);
     if (aiKey) config.set('aiKey', aiKey);
     if (aiProvider) config.set('aiProvider', aiProvider);
+    if (typeof aiEnabled !== 'undefined') config.set('aiEnabled', aiEnabled);
 };
 
 export const clearCredentials = () => {

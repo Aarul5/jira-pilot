@@ -36,6 +36,27 @@ export function registerConfigCommand(program) {
                         name: 'apiToken',
                         message: 'Jira API Token:',
                         initial: current.apiToken ? '*****' : undefined
+                    },
+                    {
+                        type: 'confirm',
+                        name: 'aiEnabled',
+                        message: 'Enable AI features?',
+                        initial: current.aiEnabled || false
+                    },
+                    {
+                        type: 'select',
+                        name: 'aiProvider',
+                        message: 'Select AI Provider:',
+                        choices: ['openai'], // Add 'gemini', 'anthropic' when ready
+                        initial: current.aiProvider || 'openai',
+                        skip: (state) => !state.answers.aiEnabled
+                    },
+                    {
+                        type: 'password',
+                        name: 'aiKey',
+                        message: 'AI API Key:',
+                        initial: current.aiKey ? '*****' : undefined,
+                        skip: (state) => !state.answers.aiEnabled
                     }
                 ]);
 
@@ -86,6 +107,48 @@ export function registerConfigCommand(program) {
             clearCredentials();
             console.log(chalk.green('Credentials cleared.'));
         });
+
+    const aiConfigCmd = new Command('ai')
+        .description('Manage AI settings');
+
+    aiConfigCmd
+        .command('enable')
+        .description('Enable AI features')
+        .action(async () => {
+            const current = getCredentials();
+            let key = current.aiKey;
+
+            if (!key) {
+                const response = await enquirer.prompt({
+                    type: 'password',
+                    name: 'aiKey',
+                    message: 'Enter AI API Key:'
+                });
+                key = response.aiKey;
+            }
+
+            setCredentials({ aiEnabled: true, aiKey: key });
+            console.log(chalk.green('AI features enabled!'));
+        });
+
+    aiConfigCmd
+        .command('disable')
+        .description('Disable AI features')
+        .action(() => {
+            setCredentials({ aiEnabled: false });
+            console.log(chalk.yellow('AI features disabled.'));
+        });
+
+    aiConfigCmd
+        .command('status')
+        .description('Check AI feature status')
+        .action(() => {
+            const { aiEnabled, aiProvider } = getCredentials();
+            console.log(`AI Enabled: ${aiEnabled ? chalk.green('Yes') : chalk.red('No')}`);
+            console.log(`Provider: ${aiProvider || 'None'}`);
+        });
+
+    configCmd.addCommand(aiConfigCmd);
 
     program.addCommand(configCmd);
 }
