@@ -42,8 +42,17 @@ export function registerAiCommand(program) {
                 console.log(aiResponse);
 
             } catch (e) {
-                spinner.fail('Failed to generate summary');
-                console.error(chalk.red(e.message));
+                spinner.stop(); // Ensure spinner stops
+                if (e.response && e.response.config && e.response.config.url.includes('/issue/')) {
+                    console.error(chalk.red(`\nError: Issue "${issueKey}" not found.`));
+                } else {
+                    console.error(chalk.red('\nFailed to generate summary:'));
+                    if (e.response) {
+                        console.error(chalk.red(`API Error ${e.response.status}: `), e.response.data);
+                    } else {
+                        console.error(chalk.red(e.message));
+                    }
+                }
             }
         });
 

@@ -38,7 +38,7 @@ export function registerIssueCommand(program) {
 
                 const searchApi = '/search/jql';
                 const body = {
-                    jql: jql || '',
+                    jql: jql || 'created is not empty',
                     maxResults: parseInt(options.limit),
                     fields: ['summary', 'status', 'assignee', 'created', 'updated']
                 };

@@ -65,7 +65,12 @@ export function registerSprintCommand(program) {
             } catch (e) {
                 spinner.fail('Failed to list sprints');
                 if (e.response) {
-                    console.error(chalk.red(`Error ${e.response.status}: `), e.response.data);
+                    if (e.response.status === 404) {
+                        console.error(chalk.red(`\nError: Board with ID "${options.board}" not found or you do not have permission to view it.`));
+                        console.error(chalk.grey('Tip: Verify the Board ID in your Jira URL: /jira/software/c/projects/KEY/boards/ID'));
+                    } else {
+                        console.error(chalk.red(`Error ${e.response.status}: `), e.response.data);
+                    }
                 } else {
                     console.error(chalk.red(e.message));
                 }
