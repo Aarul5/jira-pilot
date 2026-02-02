@@ -108,5 +108,45 @@ export function registerIssueCommand(program) {
             }
         });
 
+    issueCmd
+        .command('view')
+        .description('View issue details')
+        .argument('<issueKey>', 'Issue Key')
+        .action(async (issueKey) => {
+            const spinner = ora(`Fetching issue ${issueKey}...`).start();
+            try {
+                const issue = await api.get(`/issue/${issueKey}`);
+                spinner.stop();
+
+                console.log(chalk.bold(`\n${issue.key}: ${issue.fields.summary}`));
+                console.log(chalk.grey(`${issue.fields.issuetype.name} - ${issue.fields.status.name} - ${issue.fields.priority ? issue.fields.priority.name : 'No Priority'}`));
+                console.log(chalk.bold('\nDescription:'));
+                console.log(issue.fields.description || 'No description provided.');
+
+                if (issue.fields.assignee) {
+                    console.log(chalk.bold('\nAssignee: ') + issue.fields.assignee.displayName);
+                }
+
+                if (issue.fields.comment && issue.fields.comment.comments.length > 0) {
+                    console.log(chalk.bold('\nComments:'));
+                    issue.fields.comment.comments.forEach(c => {
+                        console.log(chalk.cyan(c.author.displayName) + ': ' + c.body);
+                    });
+                }
+                console.log('');
+            } catch (e) {
+                spinner.fail('Failed to fetch issue');
+                if (e.response) {
+                    if (e.response.status === 404) {
+                        console.error(chalk.red(`Issue "${issueKey}" not found.`));
+                    } else {
+                        console.error(chalk.red(`Error ${e.response.status}: `), e.response.data);
+                    }
+                } else {
+                    console.error(chalk.red(e.message));
+                }
+            }
+        });
+
     program.addCommand(issueCmd);
 }
