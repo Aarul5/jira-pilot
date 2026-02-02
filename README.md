@@ -85,6 +85,9 @@ jira issue transition PROJ-123
 # Export issues to file
 jira issue list --export json  # Creates issues-TIMESTAMP.json
 jira issue list --export md    # Creates issues-TIMESTAMP.md
+
+# Combine filters and export (Power User)
+jira issue list --project TRAIN --assignee <assignee_name> --status Done --export json
 ```
 
 ### Projects & Sprints
