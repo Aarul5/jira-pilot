@@ -16,7 +16,15 @@
         "cli",
         "ai",
         "agent",
-        "mcp"
+        "mcp",
+        "jira-client",
+        "jiracli",
+        "atlassian",
+        "jira-api",
+        "issue-tracker",
+        "task-management",
+        "command-line",
+        "typescript"
     ],
     "author": "Arul",
     "repository": {
