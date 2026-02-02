@@ -18,7 +18,7 @@
         "agent",
         "mcp"
     ],
-    "author": "",
+    "author": "Arul",
     "license": "ISC",
     "dependencies": {
         "@modelcontextprotocol/sdk": "^0.6.0",
