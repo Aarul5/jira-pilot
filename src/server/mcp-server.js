@@ -68,7 +68,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (name === "jira_list_issues") {
             const jql = args.jql || "";
             const limit = args.limit || 10;
-            const data = await api.post('/search', {
+            const data = await api.post('/search/jql', {
                 jql,
                 maxResults: limit,
                 fields: ['summary', 'status', 'assignee', 'description']

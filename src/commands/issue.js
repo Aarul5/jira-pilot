@@ -36,7 +36,7 @@ export function registerIssueCommand(program) {
 
                 const jql = jqlParts.join(' AND ');
 
-                const searchApi = '/search';
+                const searchApi = '/search/jql';
                 const body = {
                     jql: jql || '',
                     maxResults: parseInt(options.limit),
