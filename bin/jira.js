@@ -14,7 +14,14 @@ const program = new Command();
 program
     .name('jira')
     .description('AI-powered Jira CLI for humans and agents')
-    .version(pkg.version);
+    .version(pkg.version)
+    .addHelpText('after', `
+Examples:
+  $ jira issue list
+  $ jira issue view PROJ-123
+  $ jira sprint list --board 123
+  $ jira ai summarize PROJ-123
+    `);
 
 import { registerConfigCommand } from '../src/commands/config.js';
 import { registerIssueCommand } from '../src/commands/issue.js';

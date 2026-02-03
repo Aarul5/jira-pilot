@@ -6,7 +6,11 @@ import ora from 'ora';
 
 export function registerSprintCommand(program) {
     const sprintCmd = new Command('sprint')
-        .description('Manage Sprints');
+        .description('Manage Sprints')
+        .addHelpText('after', `
+Common Actions:
+  $ jira sprint list --board <ID|Name>   # List sprints for a board
+        `);
 
     sprintCmd
         .command('list')

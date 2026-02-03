@@ -6,7 +6,11 @@ import { aiService } from '../services/ai-service.js';
 
 export function registerAiCommand(program) {
     const aiCmd = new Command('ai')
-        .description('AI Helper commands');
+        .description('AI Helper commands')
+        .addHelpText('after', `
+Common Actions:
+  $ jira ai summarize <KEY>         # Summarize an issue
+        `);
 
     aiCmd
         .command('summarize')

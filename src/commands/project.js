@@ -6,7 +6,11 @@ import ora from 'ora';
 
 export function registerProjectCommand(program) {
     const projectCmd = new Command('project')
-        .description('Manage Jira projects');
+        .description('Manage Jira projects')
+        .addHelpText('after', `
+Common Actions:
+  $ jira project list               # List all projects
+        `);
 
     projectCmd
         .command('list')

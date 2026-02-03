@@ -7,7 +7,14 @@ import { parseADF } from '../utils/adf-parser.js';
 
 export function registerIssueCommand(program) {
     const issueCmd = new Command('issue')
-        .description('Manage Jira issues');
+        .description('Manage Jira issues')
+        .addHelpText('after', `
+Common Actions:
+  $ jira issue list                 # List assigned issues
+  $ jira issue view <KEY>           # View issue details
+  $ jira issue create               # Create new issue
+  $ jira issue transition <KEY>     # Move issue status
+        `);
 
     issueCmd
         .command('list')
@@ -18,6 +25,13 @@ export function registerIssueCommand(program) {
         .option('-a, --assignee <id>', 'Filter by assignee (use "currentUser" for self)')
         .option('-s, --status <status>', 'Filter by status')
         .option('-e, --export <format>', 'Export output (json, md)')
+        .addHelpText('after', `
+Examples:
+  $ jira issue list --project PROJ --status "In Progress"
+  $ jira issue list --assignee currentUser --limit 10
+  $ jira issue list --jql "created >= -7d"
+  $ jira issue list --export json
+        `)
         .action(async (options) => {
             const spinner = ora('Fetching issues...').start();
             try {
@@ -115,6 +129,10 @@ export function registerIssueCommand(program) {
         .command('view')
         .description('View issue details')
         .argument('<issueKey>', 'Issue Key')
+        .addHelpText('after', `
+Examples:
+  $ jira issue view PROJ-123
+        `)
         .action(async (issueKey) => {
             const spinner = ora(`Fetching issue ${issueKey}...`).start();
             try {
