@@ -138,6 +138,22 @@ Once connected, you can ask Claude things like:
 
 ---
 
+## 🛠️ Testing & Verification
+
+### Testing the MCP Server
+You can test the MCP server functionality using the official [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
+
+```bash
+npx @modelcontextprotocol/inspector node ./bin/jira.js mcp
+```
+
+This will launch a web interface where you can:
+1.  View available tools (`jira_list_issues`, `jira_get_issue`, `jira_create_issue`).
+2.  Execute tools and view output.
+3.  Inspect request/response logs.
+
+---
+
 ## 🛠️ Project Structure
 - `bin/`: Entry point.
 - `src/commands/`: CLI command definitions (Human UI).
