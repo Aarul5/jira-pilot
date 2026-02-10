@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import { api } from '../services/api-service.js';
 import ora from 'ora';
 import enquirer from 'enquirer';
+import { validateIssueKey } from '../utils/validators.js';
 
 export function registerGitCommand(program) {
     const gitCmd = new Command('git')
@@ -15,6 +16,8 @@ export function registerGitCommand(program) {
         .argument('<issueKey>', 'Jira Issue Key (e.g., PROJ-123)')
         .option('-t, --type <type>', 'Branch type (feature, bugfix, hotfix)', 'feature')
         .action(async (issueKey, options) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
             const spinner = ora(`Fetching issue ${issueKey}...`).start();
             try {
                 const issue = await api.get(`/issue/${issueKey}`);

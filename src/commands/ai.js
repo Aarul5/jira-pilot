@@ -5,6 +5,7 @@ import enquirer from 'enquirer';
 import { api } from '../services/api-service.js';
 import { aiService } from '../services/ai-service.js';
 import { parseADF } from '../utils/adf-parser.js';
+import { validateIssueKey } from '../utils/validators.js';
 
 export function registerAiCommand(program) {
     const aiCmd = new Command('ai')
@@ -22,6 +23,8 @@ Common Actions:
         .description('Summarize an issue using AI')
         .argument('<issueKey>', 'Jira Issue Key')
         .action(async (issueKey) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
             const spinner = ora(`Fetching issue ${issueKey}...`).start();
             try {
                 const issue = await api.get(`/issue/${issueKey}?fields=summary,description,comment`);
@@ -141,6 +144,8 @@ Keep it professional and concise. Output in plain text (not markdown headers, us
         .description('Suggest next actions for an issue based on its context')
         .argument('<issueKey>', 'Jira Issue Key')
         .action(async (issueKey) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
             const spinner = ora(`Analyzing issue ${issueKey}...`).start();
             try {
                 const issue = await api.get(`/issue/${issueKey}?fields=summary,description,status,assignee,priority,comment,issuetype`);

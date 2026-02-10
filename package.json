@@ -1,6 +1,6 @@
 {
     "name": "jira-pilot",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "AI-powered Jira CLI for humans and agents — manage issues, sprints, boards with interactive wizards, multi-provider AI (OpenAI/Gemini/Anthropic), and an 8-tool MCP server for AI assistants",
     "main": "src/index.js",
     "type": "module",
@@ -11,7 +11,9 @@
     "scripts": {
         "start": "node bin/jira.js",
         "mcp": "node bin/jira.js mcp",
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
         "link": "npm link"
     },
     "engines": {
@@ -81,5 +83,9 @@
         "open": "^10.0.0",
         "ora": "^8.0.0",
         "table": "^6.8.0"
+    },
+    "devDependencies": {
+        "@vitest/coverage-v8": "^4.0.18",
+        "vitest": "^4.0.18"
     }
 }

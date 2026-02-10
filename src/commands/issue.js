@@ -6,6 +6,7 @@ import ora from 'ora';
 import enquirer from 'enquirer';
 import { parseADF } from '../utils/adf-parser.js';
 import { textToADF } from '../utils/text-to-adf.js';
+import { validateIssueKey } from '../utils/validators.js';
 
 export function registerIssueCommand(program) {
     const issueCmd = new Command('issue')
@@ -136,6 +137,8 @@ Examples:
   $ jira issue view PROJ-123
         `)
         .action(async (issueKey) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
             const spinner = ora(`Fetching issue ${issueKey}...`).start();
             try {
                 const issue = await api.get(`/issue/${issueKey}`);
@@ -464,6 +467,8 @@ Examples:
   $ jira issue transition PROJ-123 -s Done
         `)
         .action(async (issueKey, options) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
             const spinner = ora(`Fetching transitions for ${issueKey}...`).start();
             try {
                 // Fetch current issue to show context
@@ -554,6 +559,8 @@ Examples:
   $ jira issue assign PROJ-123 -a none     # Unassign
         `)
         .action(async (issueKey, options) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
             try {
                 let assigneeId = options.assignee;
 
@@ -649,6 +656,8 @@ Examples:
   $ jira issue comment PROJ-123 -m "Fixed in latest build"
         `)
         .action(async (issueKey, options) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
             try {
                 let commentText = options.message;
 

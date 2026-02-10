@@ -9,7 +9,7 @@
 
 ---
 
-## ✨ Features at a Glance
+## Features at a Glance
 
 ### 👤 Human-Centric Features
 | Feature | Description |
@@ -317,37 +317,6 @@ This will launch a web interface where you can:
 1. View all 8 available tools and their schemas
 2. Execute tools with custom arguments
 3. Inspect request/response logs
-
----
-
-## 🗂️ Project Structure
-
-```
-jira-pilot/
-├── bin/
-│   └── jira.js              # CLI entry point
-├── src/
-│   ├── commands/
-│   │   ├── issue.js          # list, view, create, transition, assign, comment
-│   │   ├── project.js        # list
-│   │   ├── board.js          # list
-│   │   ├── sprint.js         # list
-│   │   ├── git.js            # branch
-│   │   ├── ai.js             # summarize, draft, suggest
-│   │   ├── config.js         # setup, view, clear
-│   │   └── mcp.js            # start MCP server
-│   ├── server/
-│   │   └── mcp-server.js     # MCP server (8 tools)
-│   ├── services/
-│   │   ├── api-service.js    # Jira REST API + Agile API client
-│   │   └── ai-service.js     # OpenAI / Gemini / Anthropic
-│   └── utils/
-│       ├── config.js         # Credential storage (conf)
-│       ├── adf-parser.js     # ADF → plain text
-│       ├── text-to-adf.js    # Plain text → ADF
-│       └── error-handler.js  # Shared error handling
-└── package.json
-```
 
 ---
 

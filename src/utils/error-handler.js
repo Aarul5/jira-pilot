@@ -28,9 +28,9 @@ export function handleCommandError(spinner, error, context = 'Operation failed')
             console.error(chalk.red('Resource not found. Check the ID or key.'));
         } else if (status === 400) {
             const data = error.response.data;
-            const messages = data?.errorMessages?.join(', ') || data?.errors
+            const messages = data?.errorMessages?.join(', ') || (data?.errors
                 ? Object.entries(data.errors).map(([k, v]) => `${k}: ${v}`).join(', ')
-                : JSON.stringify(data);
+                : JSON.stringify(data));
             console.error(chalk.red(`Bad Request: ${messages}`));
         } else {
             console.error(chalk.red(`Error ${status}: `), error.response.data);
