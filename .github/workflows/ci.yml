@@ -39,6 +39,7 @@ jobs:
 
       - name: CLI smoke test
         run: node bin/jira.js --help
+        
   publish:
     name: Publish to npm
     needs: test
@@ -50,17 +51,19 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Upgrade npm for OIDC trusted publishing
+        run: |
+          npm i -g npm@11.9.0
+          npm -v
 
-      - name: Publish
-        run: npm publish --access public --provenance
+      - run: npm ci
+
+      - run: npm publish --access public --provenance
+
