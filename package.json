@@ -1,6 +1,6 @@
 {
     "name": "jira-pilot",
-    "version": "1.0.4",
+    "version": "1.1.0",
     "description": "AI-powered Jira CLI for humans and agents",
     "main": "src/index.js",
     "type": "module",
