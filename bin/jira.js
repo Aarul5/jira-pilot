@@ -17,11 +17,14 @@ program
     .version(pkg.version)
     .addHelpText('after', `
 Examples:
+  $ jira dashboard
   $ jira issue list
   $ jira issue view PROJ-123
   $ jira issue create
+  $ jira issue search "login bug"
   $ jira board list
   $ jira sprint list --board 123
+  $ jira bulk transition -j "project = PROJ" -s Done
   $ jira ai summarize PROJ-123
     `);
 
@@ -33,6 +36,8 @@ import { registerBoardCommand } from '../src/commands/board.js';
 import { registerGitCommand } from '../src/commands/git.js';
 import { registerAiCommand } from '../src/commands/ai.js';
 import { registerMcpCommand } from '../src/commands/mcp.js';
+import { registerBulkCommand } from '../src/commands/bulk.js';
+import { registerDashboardCommand } from '../src/commands/dashboard.js';
 
 // Register Commands
 registerConfigCommand(program);
@@ -43,6 +48,8 @@ registerBoardCommand(program);
 registerGitCommand(program);
 registerAiCommand(program);
 registerMcpCommand(program);
+registerBulkCommand(program);
+registerDashboardCommand(program);
 
 program.on('command:*', () => {
     console.error(chalk.red('Invalid command: %s\nSee --help for a list of available commands.'), program.args.join(' '));

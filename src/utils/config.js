@@ -58,3 +58,35 @@ export const hasCredentials = () => {
     const creds = getCredentials();
     return !!(creds.jiraUrl && creds.email && creds.apiToken);
 };
+
+// ── Profile Management ──────────────────────────────────────────────
+
+export const saveProfile = (name) => {
+    const creds = getCredentials();
+    config.set(`profiles.${name}`, creds);
+    config.set('activeProfile', name);
+};
+
+export const loadProfile = (name) => {
+    const profile = config.get(`profiles.${name}`);
+    if (!profile) return false;
+    setCredentials(profile);
+    config.set('activeProfile', name);
+    return true;
+};
+
+export const deleteProfile = (name) => {
+    config.delete(`profiles.${name}`);
+    if (config.get('activeProfile') === name) {
+        config.delete('activeProfile');
+    }
+};
+
+export const listProfiles = () => {
+    const profiles = config.get('profiles') || {};
+    return Object.keys(profiles);
+};
+
+export const getActiveProfile = () => {
+    return config.get('activeProfile') || null;
+};

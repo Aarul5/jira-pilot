@@ -74,5 +74,80 @@ Common Actions:
             }
         });
 
+    // ── SPRINT ISSUES ────────────────────────────────────────────────
+    sprintCmd
+        .command('issues')
+        .description('List issues in the active sprint')
+        .requiredOption('-b, --board <id>', 'Board ID or name')
+        .option('-o, --output <format>', 'Output format (json)')
+        .addHelpText('after', `
+Examples:
+  $ jira sprint issues --board 5
+  $ jira sprint issues --board "My Board" --output json
+        `)
+        .action(async (options) => {
+            const spinner = ora('Fetching active sprint...').start();
+            try {
+                let boardId = options.board;
+
+                if (isNaN(boardId)) {
+                    spinner.text = `Looking up board "${options.board}"...`;
+                    const boardData = await api.agileGet(`/board?name=${encodeURIComponent(options.board)}`);
+                    if (!boardData.values || boardData.values.length === 0) {
+                        throw new Error(`Board "${options.board}" not found.`);
+                    }
+                    boardId = boardData.values[0].id;
+                }
+
+                // Get active sprint
+                const sprints = await api.agileGet(`/board/${boardId}/sprint?state=active`);
+                if (!sprints.values || sprints.values.length === 0) {
+                    spinner.stop();
+                    console.log(chalk.yellow('No active sprint found.'));
+                    return;
+                }
+
+                const activeSprint = sprints.values[0];
+                spinner.text = `Fetching issues for sprint "${activeSprint.name}"...`;
+
+                const issues = await api.agileGet(`/sprint/${activeSprint.id}/issue?maxResults=50&fields=summary,status,assignee,priority`);
+                spinner.stop();
+
+                if (!issues.issues || issues.issues.length === 0) {
+                    console.log(chalk.yellow('No issues in active sprint.'));
+                    return;
+                }
+
+                console.log(chalk.bold(`\n🏃 Sprint: ${activeSprint.name}\n`));
+
+                if (options.output === 'json') {
+                    console.log(JSON.stringify(issues.issues.map(i => ({
+                        key: i.key, summary: i.fields.summary,
+                        status: i.fields.status?.name, assignee: i.fields.assignee?.displayName || null,
+                        priority: i.fields.priority?.name
+                    })), null, 2));
+                    return;
+                }
+
+                const tableData = [
+                    [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee'), chalk.bold('Priority')]
+                ];
+                issues.issues.forEach(i => {
+                    tableData.push([
+                        chalk.cyan(i.key),
+                        i.fields.summary ? (i.fields.summary.length > 50 ? i.fields.summary.substring(0, 47) + '...' : i.fields.summary) : '',
+                        i.fields.status?.name || '',
+                        i.fields.assignee?.displayName || 'Unassigned',
+                        i.fields.priority?.name || ''
+                    ]);
+                });
+                console.log(table(tableData));
+                console.log(chalk.grey(`${issues.issues.length} issue(s) in sprint`));
+
+            } catch (e) {
+                handleCommandError(spinner, e, 'Failed to list sprint issues');
+            }
+        });
+
     program.addCommand(sprintCmd);
 }

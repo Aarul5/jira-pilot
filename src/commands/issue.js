@@ -7,6 +7,7 @@ import enquirer from 'enquirer';
 import { parseADF } from '../utils/adf-parser.js';
 import { textToADF } from '../utils/text-to-adf.js';
 import { validateIssueKey } from '../utils/validators.js';
+import { handleCommandError } from '../utils/error-handler.js';
 
 export function registerIssueCommand(program) {
     const issueCmd = new Command('issue')
@@ -28,6 +29,7 @@ Common Actions:
         .option('-a, --assignee <id>', 'Filter by assignee (use "currentUser" for self)')
         .option('-s, --status <status>', 'Filter by status')
         .option('-e, --export <format>', 'Export output (json, md)')
+        .option('-o, --output <format>', 'Output format (json)')
         .addHelpText('after', `
 Examples:
   $ jira issue list --project PROJ --status "In Progress"
@@ -101,6 +103,15 @@ Examples:
                     }
                 }
 
+                if (options.output === 'json') {
+                    console.log(JSON.stringify(data.issues.map(i => ({
+                        key: i.key, summary: i.fields.summary,
+                        status: i.fields.status?.name, assignee: i.fields.assignee?.displayName || null,
+                        created: i.fields.created, updated: i.fields.updated
+                    })), null, 2));
+                    return;
+                }
+
                 const tableData = [
                     [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee'), chalk.bold('Created'), chalk.bold('Updated')]
                 ];
@@ -132,17 +143,31 @@ Examples:
         .command('view')
         .description('View issue details')
         .argument('<issueKey>', 'Issue Key')
+        .option('-o, --output <format>', 'Output format (json)')
         .addHelpText('after', `
 Examples:
   $ jira issue view PROJ-123
+  $ jira issue view PROJ-123 --output json
         `)
-        .action(async (issueKey) => {
+        .action(async (issueKey, options) => {
             const check = validateIssueKey(issueKey);
             if (!check.valid) { console.error(chalk.red(check.message)); return; }
             const spinner = ora(`Fetching issue ${issueKey}...`).start();
             try {
                 const issue = await api.get(`/issue/${issueKey}`);
                 spinner.stop();
+
+                if (options.output === 'json') {
+                    console.log(JSON.stringify({
+                        key: issue.key, summary: issue.fields.summary,
+                        status: issue.fields.status?.name, priority: issue.fields.priority?.name,
+                        assignee: issue.fields.assignee?.displayName || null,
+                        type: issue.fields.issuetype?.name,
+                        description: parseADF(issue.fields.description) || null,
+                        created: issue.fields.created, updated: issue.fields.updated
+                    }, null, 2));
+                    return;
+                }
 
                 console.log(chalk.bold(`\n${issue.key}: ${issue.fields.summary}`));
                 console.log(chalk.grey(`${issue.fields.issuetype.name} - ${issue.fields.status.name} - ${issue.fields.priority ? issue.fields.priority.name : 'No Priority'}`));
@@ -700,6 +725,243 @@ Examples:
                 } else {
                     console.error(chalk.red(e.message));
                 }
+            }
+        });
+
+    // ── EDIT ──────────────────────────────────────────────────────────
+    issueCmd
+        .command('edit')
+        .description('Edit issue fields')
+        .argument('<issueKey>', 'Issue Key (e.g., PROJ-123)')
+        .option('-s, --summary <text>', 'New summary')
+        .option('-d, --description <text>', 'New description')
+        .option('--priority <name>', 'New priority')
+        .addHelpText('after', `
+Examples:
+  $ jira issue edit PROJ-123                         # Interactive field picker
+  $ jira issue edit PROJ-123 -s "Updated title"
+  $ jira issue edit PROJ-123 --priority High
+  $ jira issue edit PROJ-123 -d "New description"
+        `)
+        .action(async (issueKey, options) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
+            const spinner = ora(`Fetching issue ${issueKey}...`).start();
+            try {
+                const issue = await api.get(`/issue/${issueKey}?fields=summary,description,priority`);
+                spinner.stop();
+
+                const updateBody = { fields: {} };
+                const hasFlags = options.summary || options.description || options.priority;
+
+                if (hasFlags) {
+                    if (options.summary) updateBody.fields.summary = options.summary;
+                    if (options.description) updateBody.fields.description = textToADF(options.description);
+                    if (options.priority) updateBody.fields.priority = { name: options.priority };
+                } else {
+                    // Interactive: pick which fields to edit
+                    console.log(chalk.bold(`\nEditing ${chalk.cyan(issueKey)}: ${issue.fields.summary}\n`));
+
+                    const { Select, Input } = enquirer;
+
+                    const fieldSelect = new Select({
+                        name: 'fields',
+                        message: 'Select fields to edit',
+                        choices: [
+                            { name: 'summary', message: `Summary: ${issue.fields.summary}` },
+                            { name: 'description', message: 'Description' },
+                            { name: 'priority', message: `Priority: ${issue.fields.priority?.name || 'None'}` }
+                        ],
+                        multiple: true
+                    });
+                    const selectedFields = await fieldSelect.run();
+
+                    if (!selectedFields || selectedFields.length === 0) {
+                        console.log(chalk.yellow('No fields selected.'));
+                        return;
+                    }
+
+                    for (const field of selectedFields) {
+                        if (field === 'summary') {
+                            const prompt = new Input({ message: 'New summary', initial: issue.fields.summary });
+                            updateBody.fields.summary = await prompt.run();
+                        }
+                        if (field === 'description') {
+                            const prompt = new Input({ message: 'New description' });
+                            const desc = await prompt.run();
+                            if (desc) updateBody.fields.description = textToADF(desc);
+                        }
+                        if (field === 'priority') {
+                            const priorities = await api.get('/priority');
+                            const prioSelect = new Select({
+                                name: 'priority',
+                                message: 'Select priority',
+                                choices: priorities.map(p => ({ name: p.name, message: p.name }))
+                            });
+                            updateBody.fields.priority = { name: await prioSelect.run() };
+                        }
+                    }
+                }
+
+                if (Object.keys(updateBody.fields).length === 0) {
+                    console.log(chalk.yellow('No changes specified.'));
+                    return;
+                }
+
+                const updateSpinner = ora('Updating issue...').start();
+                await api.put(`/issue/${issueKey}`, updateBody);
+                updateSpinner.succeed(`${chalk.cyan(issueKey)} updated successfully`);
+
+            } catch (e) {
+                handleCommandError(spinner, e, `Failed to edit ${issueKey}`);
+            }
+        });
+
+    // ── SEARCH ────────────────────────────────────────────────────────
+    issueCmd
+        .command('search')
+        .description('Quick text search across issues')
+        .argument('<query>', 'Search text')
+        .option('-p, --project <key>', 'Filter by project')
+        .option('-l, --limit <n>', 'Max results', '15')
+        .option('-o, --output <format>', 'Output format (json)')
+        .addHelpText('after', `
+Examples:
+  $ jira issue search "login bug"
+  $ jira issue search "payment" -p PROJ
+  $ jira issue search "crash" --output json
+        `)
+        .action(async (query, options) => {
+            const spinner = ora(`Searching for "${query}"...`).start();
+            try {
+                const jqlParts = [`text ~ "${query.replace(/"/g, '\\"')}"`];
+                if (options.project) jqlParts.push(`project = "${options.project}"`);
+                const jql = jqlParts.join(' AND ') + ' ORDER BY updated DESC';
+
+                const data = await api.post('/search/jql', {
+                    jql,
+                    maxResults: parseInt(options.limit),
+                    fields: ['summary', 'status', 'assignee', 'updated']
+                });
+                spinner.stop();
+
+                if (!data.issues || data.issues.length === 0) {
+                    console.log(chalk.yellow('No issues found.'));
+                    return;
+                }
+
+                if (options.output === 'json') {
+                    console.log(JSON.stringify(data.issues.map(i => ({
+                        key: i.key, summary: i.fields.summary,
+                        status: i.fields.status?.name, assignee: i.fields.assignee?.displayName || null,
+                        updated: i.fields.updated
+                    })), null, 2));
+                    return;
+                }
+
+                const tableData = [
+                    [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee')]
+                ];
+                data.issues.forEach(i => {
+                    tableData.push([
+                        chalk.cyan(i.key),
+                        i.fields.summary ? (i.fields.summary.length > 55 ? i.fields.summary.substring(0, 52) + '...' : i.fields.summary) : '',
+                        i.fields.status?.name || '',
+                        i.fields.assignee?.displayName || 'Unassigned'
+                    ]);
+                });
+                console.log(table(tableData));
+                console.log(chalk.grey(`Found ${data.issues.length} result(s)`));
+
+            } catch (e) {
+                handleCommandError(spinner, e, 'Search failed');
+            }
+        });
+
+    // ── LINK ──────────────────────────────────────────────────────────
+    issueCmd
+        .command('link')
+        .description('Link two issues together')
+        .argument('<sourceKey>', 'Source issue key')
+        .argument('<targetKey>', 'Target issue key')
+        .option('-t, --type <name>', 'Link type (e.g., "Blocks", "Relates")')
+        .addHelpText('after', `
+Examples:
+  $ jira issue link PROJ-1 PROJ-2                # Interactive type selection
+  $ jira issue link PROJ-1 PROJ-2 -t "Blocks"
+  $ jira issue link PROJ-1 PROJ-2 -t "Relates"
+        `)
+        .action(async (sourceKey, targetKey, options) => {
+            const srcCheck = validateIssueKey(sourceKey);
+            if (!srcCheck.valid) { console.error(chalk.red(srcCheck.message)); return; }
+            const tgtCheck = validateIssueKey(targetKey);
+            if (!tgtCheck.valid) { console.error(chalk.red(tgtCheck.message)); return; }
+
+            try {
+                let linkType = options.type;
+
+                if (!linkType) {
+                    const spinner = ora('Fetching link types...').start();
+                    const linkTypes = await api.get('/issueLinkType');
+                    spinner.stop();
+
+                    const { Select } = enquirer;
+                    const typeSelect = new Select({
+                        name: 'linkType',
+                        message: `Link type: ${chalk.cyan(sourceKey)} → ${chalk.cyan(targetKey)}`,
+                        choices: linkTypes.issueLinkTypes.map(lt => ({
+                            name: lt.name,
+                            message: `${lt.name} (${lt.inward} / ${lt.outward})`
+                        }))
+                    });
+                    linkType = await typeSelect.run();
+                }
+
+                const spinner = ora(`Linking ${sourceKey} → ${targetKey}...`).start();
+                await api.post('/issueLink', {
+                    type: { name: linkType },
+                    inwardIssue: { key: sourceKey },
+                    outwardIssue: { key: targetKey }
+                });
+                spinner.succeed(`Linked ${chalk.cyan(sourceKey)} ${chalk.grey(`—[${linkType}]→`)} ${chalk.cyan(targetKey)}`);
+
+            } catch (e) {
+                handleCommandError(null, e, `Failed to link issues`);
+            }
+        });
+
+    // ── WATCH ─────────────────────────────────────────────────────────
+    issueCmd
+        .command('watch')
+        .description('Start watching an issue')
+        .argument('<issueKey>', 'Issue Key')
+        .action(async (issueKey) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
+            const spinner = ora(`Watching ${issueKey}...`).start();
+            try {
+                await api.post(`/issue/${issueKey}/watchers`, null);
+                spinner.succeed(`Now watching ${chalk.cyan(issueKey)}`);
+            } catch (e) {
+                handleCommandError(spinner, e, `Failed to watch ${issueKey}`);
+            }
+        });
+
+    // ── UNWATCH ───────────────────────────────────────────────────────
+    issueCmd
+        .command('unwatch')
+        .description('Stop watching an issue')
+        .argument('<issueKey>', 'Issue Key')
+        .action(async (issueKey) => {
+            const check = validateIssueKey(issueKey);
+            if (!check.valid) { console.error(chalk.red(check.message)); return; }
+            const spinner = ora(`Unwatching ${issueKey}...`).start();
+            try {
+                const me = await api.get('/myself');
+                await api.delete(`/issue/${issueKey}/watchers?accountId=${me.accountId}`);
+                spinner.succeed(`Stopped watching ${chalk.cyan(issueKey)}`);
+            } catch (e) {
+                handleCommandError(spinner, e, `Failed to unwatch ${issueKey}`);
             }
         });
 

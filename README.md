@@ -14,13 +14,14 @@
 ### 👤 Human-Centric Features
 | Feature | Description |
 |---------|-------------|
-| **Issue Management** | Create, view, list, transition, assign, and comment on issues |
+| **Issue Management** | Create, edit, view, list, transition, assign, and comment on issues |
+| **Power Tools** | Bulk transition, issue linking, watching, and quick search |
 | **Interactive Wizards** | Step-by-step prompts with `enquirer` — no flags required |
-| **Board & Sprint Management** | List boards, view sprints by state |
+| **Board & Sprint Management** | List boards, view active sprint issues |
 | **Git Integration** | Create feature branches from issues with smart naming |
 | **AI Copilot** | Summarize issues, draft descriptions, get next-action suggestions |
-| **Rich Visualization** | Beautiful tables, spinners, and formatted output |
-| **Export** | Export issues list to JSON or Markdown files |
+| **Rich Visualization** | Dashboard overview, spinners, and formatted output |
+| **Export** | Output to JSON or Markdown files, pipeable JSON output |
 
 ### 🤖 Agentic Features (MCP)
 | Feature | Description |
@@ -80,6 +81,16 @@ jira config view     # Show current configuration (keys are masked)
 jira config clear    # Remove all stored credentials
 ```
 
+### Config Profiles
+Manage credentials for multiple environments (e.g., Work vs. Personal, Prod vs. Dev).
+
+```bash
+jira config save work       # Save current creds as profile 'work'
+jira config use personal    # Switch to profile 'personal'
+jira config profiles        # List all saved profiles
+jira config delete-profile work
+```
+
 > **Note:** Credentials are stored securely using the `conf` library in your system's config directory.
 
 ---
@@ -106,8 +117,21 @@ jira issue list --limit 20
 jira issue list --export json    # Creates issues-TIMESTAMP.json
 jira issue list --export md      # Creates issues-TIMESTAMP.md
 
-# Combine filters and export
-jira issue list --project PROJ --status Done --export json
+# Pipeable JSON output (to stdout)
+jira issue list --output json | jq .
+```
+
+#### Search Issues
+Quick text search using JQL `text ~ "query"`:
+```bash
+jira issue search "login bug"
+jira issue search "error 500" --project PROJ
+```
+
+#### Dashboard Overview
+Get a high-level view of your work:
+```bash
+jira dashboard    # Shows your open issues (by priority) and recent activity
 ```
 
 #### View Issue Details
@@ -125,6 +149,11 @@ jira issue create
 jira issue create -p PROJ -s "Fix login bug"
 jira issue create -p PROJ -t Bug -s "Crash on save" --priority High
 jira issue create -p PROJ -t Story -s "Add dark mode" -d "Users want a dark theme" -a me
+jira issue create -p PROJ -s "New feature" -a me
+
+# Edit Issue
+jira issue edit PROJ-123 -s "New Summary" --priority High
+jira issue edit PROJ-123    # Interactive field picker
 ```
 
 **Interactive Wizard Steps:**
@@ -164,6 +193,20 @@ jira issue comment PROJ-123
 jira issue comment PROJ-123 -m "Fixed in latest build"
 ```
 
+#### Link, Watch, & Bulk
+```bash
+# Link Issues
+jira issue link PROJ-123 PROJ-456         # Link two issues (interactive type)
+jira issue link PROJ-123 PROJ-456 -t Blocks
+
+# Watchers
+jira issue watch PROJ-123                 # Start watching
+jira issue unwatch PROJ-123               # Stop watching
+
+# Bulk Transition
+jira bulk transition -j "project = PROJ AND status = Validated" -s Closed
+```
+
 ---
 
 ### 📂 Projects & Boards
@@ -194,6 +237,10 @@ jira sprint list --board 5
 
 # List by board name
 jira sprint list --board "My Team Board"
+
+# List issues in active sprint
+jira sprint issues --board "My Team Board"
+jira sprint issues --board 123 --output json
 
 # Filter by state
 jira sprint list --board 5 --state active
@@ -326,22 +373,37 @@ This will launch a web interface where you can:
 jira [command]
 
 Commands:
-  config           Configure Jira credentials
+  config           Configure Jira credentials & profiles
   issue            Manage Jira issues
   project          Manage Jira projects
   board            Manage Jira boards
   sprint           Manage Sprints
+  bulk             Bulk operations on Jira issues
+  dashboard        Show a quick overview of your Jira activity
   git              Git integration for Jira
   ai               AI Helper commands
   mcp              Start MCP Agent Server (Stdio)
+
+Config Subcommands:
+  config setup     Interactive setup
+  config view      View current configuration
+  config clear     Clear configuration
+  config save      Save current config as a profile
+  config use       Switch to a saved profile
+  config profiles  List saved profiles
 
 Issue Subcommands:
   issue list       List issues (JQL, filters, export)
   issue view       View issue details
   issue create     Create a new issue (wizard or flags)
+  issue edit       Edit issue fields (interactive or flags)
   issue transition Transition issue status
   issue assign     Assign or reassign an issue
   issue comment    Add a comment to an issue
+  issue search     Quick text search
+  issue link       Link two issues
+  issue watch      Start watching an issue
+  issue unwatch    Stop watching an issue
 
 AI Subcommands:
   ai summarize     Summarize an issue using AI
@@ -353,6 +415,10 @@ Board Subcommands:
 
 Sprint Subcommands:
   sprint list      List sprints for a board
+  sprint issues    List issues in active sprint
+
+Bulk Subcommands:
+  bulk transition  Bulk transition issues matching JQL
 ```
 
 ---

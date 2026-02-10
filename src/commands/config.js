@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import enquirer from 'enquirer';
-import { setCredentials, getCredentials, clearCredentials } from '../utils/config.js';
+import { setCredentials, getCredentials, clearCredentials, saveProfile, loadProfile, deleteProfile, listProfiles, getActiveProfile } from '../utils/config.js';
 import ora from 'ora';
 import { api } from '../services/api-service.js';
 
@@ -149,6 +149,69 @@ export function registerConfigCommand(program) {
         });
 
     configCmd.addCommand(aiConfigCmd);
+
+    // ── PROFILE MANAGEMENT ───────────────────────────────────────────
+    configCmd
+        .command('save')
+        .description('Save current config as a named profile')
+        .argument('<name>', 'Profile name')
+        .action((name) => {
+            saveProfile(name);
+            console.log(chalk.green(`Profile "${name}" saved and set as active.`));
+        });
+
+    configCmd
+        .command('use')
+        .description('Switch to a saved profile')
+        .argument('<name>', 'Profile name')
+        .action((name) => {
+            if (loadProfile(name)) {
+                console.log(chalk.green(`Switched to profile "${name}".`));
+                const creds = getCredentials();
+                console.log(`  URL: ${creds.jiraUrl}`);
+                console.log(`  Email: ${creds.email}`);
+            } else {
+                console.error(chalk.red(`Profile "${name}" not found.`));
+                const profiles = listProfiles();
+                if (profiles.length > 0) {
+                    console.log(chalk.grey(`Available: ${profiles.join(', ')}`));
+                }
+            }
+        });
+
+    configCmd
+        .command('profiles')
+        .description('List saved profiles')
+        .action(() => {
+            const profiles = listProfiles();
+            const active = getActiveProfile();
+
+            if (profiles.length === 0) {
+                console.log(chalk.yellow('No profiles saved. Use "jira config save <name>" to save one.'));
+                return;
+            }
+
+            console.log(chalk.bold('\nSaved Profiles:\n'));
+            profiles.forEach(p => {
+                const marker = p === active ? chalk.green(' ✓ (active)') : '';
+                console.log(`  ${chalk.cyan(p)}${marker}`);
+            });
+            console.log('');
+        });
+
+    configCmd
+        .command('delete-profile')
+        .description('Delete a saved profile')
+        .argument('<name>', 'Profile name')
+        .action((name) => {
+            const profiles = listProfiles();
+            if (!profiles.includes(name)) {
+                console.error(chalk.red(`Profile "${name}" not found.`));
+                return;
+            }
+            deleteProfile(name);
+            console.log(chalk.green(`Profile "${name}" deleted.`));
+        });
 
     program.addCommand(configCmd);
 }

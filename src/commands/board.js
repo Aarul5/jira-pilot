@@ -20,6 +20,7 @@ Common Actions:
         .option('-p, --project <key>', 'Filter by project key')
         .option('-t, --type <type>', 'Filter by board type (scrum, kanban, simple)')
         .option('-l, --limit <n>', 'Max results', '50')
+        .option('-o, --output <format>', 'Output format (json)')
         .action(async (options) => {
             const spinner = ora('Fetching boards...').start();
             try {
@@ -38,6 +39,14 @@ Common Actions:
 
                 if (!data.values || data.values.length === 0) {
                     console.log(chalk.yellow('No boards found.'));
+                    return;
+                }
+
+                if (options.output === 'json') {
+                    console.log(JSON.stringify(data.values.map(b => ({
+                        id: b.id, name: b.name,
+                        type: b.type, project: b.location?.projectKey || null
+                    })), null, 2));
                     return;
                 }
 

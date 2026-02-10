@@ -15,7 +15,8 @@ Common Actions:
     projectCmd
         .command('list')
         .description('List accessible projects')
-        .action(async () => {
+        .option('-o, --output <format>', 'Output format (json)')
+        .action(async (options) => {
             const spinner = ora('Fetching projects...').start();
             try {
                 const data = await api.get('/project/search');
@@ -23,6 +24,14 @@ Common Actions:
 
                 if (!data.values || data.values.length === 0) {
                     console.log(chalk.yellow('No projects found.'));
+                    return;
+                }
+
+                if (options.output === 'json') {
+                    console.log(JSON.stringify(data.values.map(p => ({
+                        key: p.key, name: p.name,
+                        lead: p.lead?.displayName || null, style: p.style
+                    })), null, 2));
                     return;
                 }
 
