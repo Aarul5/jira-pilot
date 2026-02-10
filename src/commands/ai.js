@@ -6,6 +6,9 @@ import { api } from '../services/api-service.js';
 import { aiService } from '../services/ai-service.js';
 import { parseADF } from '../utils/adf-parser.js';
 import { validateIssueKey } from '../utils/validators.js';
+import { reviewAction } from './ai-actions/review.js';
+import { planAction } from './ai-actions/plan.js';
+import { standupAction } from './ai-actions/standup.js';
 
 export function registerAiCommand(program) {
     const aiCmd = new Command('ai')
@@ -204,6 +207,26 @@ Keep suggestions actionable and concise.
                 }
             }
         });
+
+    // ── REVIEW ────────────────────────────────────────────────────────
+    aiCmd
+        .command('review')
+        .description('Analyze linked code/PRs for an issue')
+        .argument('<issueKey>', 'Jira Issue Key')
+        .action(reviewAction);
+
+    // ── PLAN ──────────────────────────────────────────────────────────
+    aiCmd
+        .command('plan')
+        .description('Break down an Epic into child stories/tasks')
+        .argument('<epicKey>', 'Epic Issue Key')
+        .action(planAction);
+
+    // ── STANDUP ───────────────────────────────────────────────────────
+    aiCmd
+        .command('standup')
+        .description('Generate a daily standup report from activity')
+        .action(standupAction);
 
     program.addCommand(aiCmd);
 }

@@ -19,7 +19,7 @@
 | **Interactive Wizards** | Step-by-step prompts with `enquirer` — no flags required |
 | **Board & Sprint Management** | List boards, view active sprint issues |
 | **Git Integration** | Create feature branches from issues with smart naming |
-| **AI Copilot** | Summarize issues, draft descriptions, get next-action suggestions |
+| **AI Copilot** | **Pro:** Code review, epic breakdown (plan), standups.<br>**Standard:** Summarize, draft, suggest, NL JQL. |
 | **Rich Visualization** | Dashboard overview, spinners, and formatted output |
 | **Export** | Output to JSON or Markdown files, pipeable JSON output |
 
@@ -112,6 +112,9 @@ jira issue list --project PROJ --assignee "john.doe" --status "In Progress"
 
 # Limit results
 jira issue list --limit 20
+
+# Natural Language JQL (AI)
+jira issue list --ask "high priority bugs assigned to me"
 
 # Export results to file
 jira issue list --export json    # Creates issues-TIMESTAMP.json
@@ -287,6 +290,26 @@ jira ai suggest PROJ-123
 ```
 Returns: **Immediate Next Action**, **Potential Blockers**, **Suggested Status Transition**, and **Recommendations**.
 
+#### AI Code Review
+Analyze linked PRs/code changes against issue requirements:
+```bash
+jira ai review PROJ-123
+```
+*Requires `githubToken` in config.*
+
+#### AI Epic Planning
+Break down an Epic into child Stories/Tasks and bulk create them:
+```bash
+jira ai plan EPIC-123    # Interactive selection of proposed tasks
+```
+
+#### AI Standup Report
+Generate a daily standup based on your recent activity:
+```bash
+jira ai standup
+```
+Outputs: **Yesterday**, **Today**, **Blockers**.
+
 ---
 
 ## 🧠 Using with AI Agents (MCP)
@@ -409,6 +432,9 @@ AI Subcommands:
   ai summarize     Summarize an issue using AI
   ai draft         Draft issue description from notes
   ai suggest       Suggest next actions for an issue
+  ai review        AI code review of linked PR
+  ai plan          Break down Epic into stories
+  ai standup       Generate daily standup report
 
 Board Subcommands:
   board list       List Jira boards

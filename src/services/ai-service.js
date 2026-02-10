@@ -29,6 +29,64 @@ export class AiService {
         }
     }
 
+    async reviewCode(diff, context) {
+        const prompt = `Review the following code changes against the issue context.
+Issue Context: ${context}
+
+Code Diff:
+\`\`\`diff
+${diff.substring(0, 10000)}
+\`\`\`
+(Diff truncated to 10k chars if longer)
+
+Provide a concise code review. Focus on:
+1. Does it meet the issue requirements?
+2. Potential bugs or security issues.
+3. Code quality improvements.
+4. Verify if tests are included if applicable.`;
+        return this.generate(prompt);
+    }
+
+    async breakdownEpic(summary, description) {
+        const prompt = `Break down the following Epic into child Stories and Tasks.
+Epic Summary: ${summary}
+Epic Description: ${description || 'N/A'}
+
+Return ONLY a valid JSON array of objects with "type" (Story, Task, Bug), "summary", and "description" fields.
+Example: [{"type": "Story", "summary": "...", "description": "..."}]`;
+        const response = await this.generate(prompt);
+        // Clean markdown code blocks if present
+        const jsonStr = response.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(jsonStr);
+    }
+
+    async generateStandup(yesterday, today) {
+        const prompt = `Generate a daily standup update based on my Jira activity.
+Activity (Last 24h):
+${yesterday}
+
+Current Assignments (Today):
+${today}
+
+Format:
+*   **Yesterday**: (Completed items, progress made)
+*   **Today**: (Plan for today based on assignments)
+*   **Blockers**: (Identify potential blockers or ask if any)
+
+Keep it concise and professional.`;
+        return this.generate(prompt);
+    }
+
+    async generateJql(query) {
+        const prompt = `Convert the following natural language query into Jira JQL.
+Query: "${query}"
+
+Return ONLY the raw JQL string. No markdown, no explanations.
+Today is ${new Date().toISOString().split('T')[0]}.`;
+        const response = await this.generate(prompt);
+        return response.replace(/```/g, '').trim();
+    }
+
     async callOpenAI(key, prompt) {
         try {
             const response = await axios.post('https://api.openai.com/v1/chat/completions', {

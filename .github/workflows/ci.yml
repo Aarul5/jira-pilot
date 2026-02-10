@@ -39,12 +39,16 @@ jobs:
 
       - name: CLI smoke test
         run: node bin/jira.js --help
-
   publish:
     name: Publish to npm
     needs: test
     runs-on: ubuntu-latest
     if: (github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:')) || github.event_name == 'workflow_dispatch'
+
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,6 +63,4 @@ jobs:
         run: npm ci
 
       - name: Publish
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance

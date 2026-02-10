@@ -22,6 +22,9 @@ const schema = {
     aiEnabled: {
         type: 'boolean',
         default: false
+    },
+    githubToken: {
+        type: 'string'
     }
 };
 
@@ -37,17 +40,19 @@ export const getCredentials = () => {
         apiToken: config.get('apiToken'),
         aiKey: config.get('aiKey'),
         aiProvider: config.get('aiProvider'),
-        aiEnabled: config.get('aiEnabled')
+        aiEnabled: config.get('aiEnabled'),
+        githubToken: config.get('githubToken')
     };
 };
 
-export const setCredentials = ({ jiraUrl, email, apiToken, aiKey, aiProvider, aiEnabled }) => {
+export const setCredentials = ({ jiraUrl, email, apiToken, aiKey, aiProvider, aiEnabled, githubToken }) => {
     if (jiraUrl) config.set('jiraUrl', jiraUrl);
     if (email) config.set('email', email);
     if (apiToken) config.set('apiToken', apiToken);
     if (aiKey) config.set('aiKey', aiKey);
     if (aiProvider) config.set('aiProvider', aiProvider);
     if (typeof aiEnabled !== 'undefined') config.set('aiEnabled', aiEnabled);
+    if (githubToken) config.set('githubToken', githubToken);
 };
 
 export const clearCredentials = () => {

@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { table } from 'table';
 import { api } from '../services/api-service.js';
+import { aiService } from '../services/ai-service.js';
 import ora from 'ora';
 import enquirer from 'enquirer';
 import { parseADF } from '../utils/adf-parser.js';
@@ -24,6 +25,7 @@ Common Actions:
         .command('list')
         .description('List issues')
         .option('-j, --jql <query>', 'JQL query to filter issues')
+        .option('--ask <query>', 'Filter issues using natural language query (AI)')
         .option('-l, --limit <number>', 'Limit results', '20')
         .option('-p, --project <key>', 'Filter by project')
         .option('-a, --assignee <id>', 'Filter by assignee (use "currentUser" for self)')
@@ -40,6 +42,20 @@ Examples:
         .action(async (options) => {
             const spinner = ora('Fetching issues...').start();
             try {
+                // Natural Language JQL
+                if (options.ask) {
+                    const aiSpinner = ora(`Translating query: "${options.ask}"...`).start();
+                    try {
+                        const generatedJql = await aiService.generateJql(options.ask);
+                        aiSpinner.succeed(`JQL: ${chalk.cyan(generatedJql)}`);
+                        options.jql = generatedJql; // Override/Set JQL
+                    } catch (e) {
+                        aiSpinner.fail('Failed to translate query.');
+                        console.error(chalk.red(e.message));
+                        return;
+                    }
+                }
+
                 const jqlParts = [];
                 if (options.project) jqlParts.push(`project = "${options.project}"`);
                 if (options.assignee) jqlParts.push(`assignee = ${options.assignee === 'currentUser' ? 'currentUser()' : `"${options.assignee}"`}`);

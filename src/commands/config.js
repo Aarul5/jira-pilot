@@ -57,6 +57,13 @@ export function registerConfigCommand(program) {
                         message: 'AI API Key:',
                         initial: current.aiKey ? '*****' : undefined,
                         skip: (state) => !state.answers.aiEnabled
+                    },
+                    {
+                        type: 'password',
+                        name: 'githubToken',
+                        message: 'GitHub Personal Access Token (for AI Code Review):',
+                        initial: current.githubToken ? '*****' : undefined,
+                        skip: (state) => !state.answers.aiEnabled
                     }
                 ]);
 
