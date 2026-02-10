@@ -2,9 +2,9 @@
 
 **The AI-Powered Jira CLI for Humans and Agents.**
 
-`jira-pilot` is a next-generation Command Line Interface for Jira. It bridges the gap between traditional developer tools and modern AI Agents.
+`jira-pilot` is a next-generation CLI that combines traditional developer tools with modern AI capabilities.
 
-- **For Humans:** A beautiful, interactive CLI to manage issues, sprints, boards, and code without leaving your terminal.
+- **For Humans:** A beautiful, interactive CLI to manage issues, sprints, boards, and code. Now with **AI Code Reviews**, **Epic Planning**, **Daily Standups**, and **Natural Language JQL**.
 - **For Agents:** A fully compliant **Model Context Protocol (MCP)** server with 8 tools that lets AI assistants (like Claude Desktop or Gemini) interact with your Jira instance safely.
 
 ---
