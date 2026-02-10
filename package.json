@@ -1,32 +1,67 @@
 {
     "name": "jira-pilot",
-    "version": "1.1.0",
-    "description": "AI-powered Jira CLI for humans and agents",
+    "version": "2.0.0",
+    "description": "AI-powered Jira CLI for humans and agents — manage issues, sprints, boards with interactive wizards, multi-provider AI (OpenAI/Gemini/Anthropic), and an 8-tool MCP server for AI assistants",
     "main": "src/index.js",
     "type": "module",
     "bin": {
-        "jira": "./bin/jira.js"
+        "jira": "./bin/jira.js",
+        "jira-pilot": "./bin/jira.js"
     },
     "scripts": {
+        "start": "node bin/jira.js",
+        "mcp": "node bin/jira.js mcp",
         "test": "echo \"Error: no test specified\" && exit 1",
         "link": "npm link"
     },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "files": [
+        "bin/",
+        "src/",
+        "README.md",
+        "LICENSE"
+    ],
     "keywords": [
         "jira",
         "cli",
-        "ai",
-        "agent",
-        "mcp",
+        "jira-cli",
         "jira-client",
-        "jiracli",
-        "atlassian",
         "jira-api",
+        "atlassian",
+        "atlassian-jira",
+        "ai",
+        "ai-cli",
+        "openai",
+        "gemini",
+        "anthropic",
+        "claude",
+        "gpt",
+        "mcp",
+        "model-context-protocol",
+        "ai-agent",
+        "agent",
         "issue-tracker",
+        "project-management",
         "task-management",
+        "sprint",
+        "kanban",
+        "scrum",
+        "agile",
         "command-line",
-        "typescript"
+        "interactive",
+        "terminal",
+        "developer-tools",
+        "devtools",
+        "productivity",
+        "workflow",
+        "git-integration"
     ],
-    "author": "Arul",
+    "author": {
+        "name": "Arul",
+        "url": "https://github.com/Aarul5"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/Aarul5/jira-pilot.git"

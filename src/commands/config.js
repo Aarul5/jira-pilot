@@ -47,7 +47,7 @@ export function registerConfigCommand(program) {
                         type: 'select',
                         name: 'aiProvider',
                         message: 'Select AI Provider:',
-                        choices: ['openai'], // Add 'gemini', 'anthropic' when ready
+                        choices: ['openai', 'gemini', 'anthropic'],
                         initial: current.aiProvider || 'openai',
                         skip: (state) => !state.answers.aiEnabled
                     },

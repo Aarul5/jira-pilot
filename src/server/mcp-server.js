@@ -2,6 +2,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { api } from "../services/api-service.js";
+import { textToADF } from "../utils/text-to-adf.js";
 
 // Initialize MCP Server
 const server = new Server(
@@ -16,88 +17,300 @@ const server = new Server(
     }
 );
 
-// Define Tools
+// ── Tool Definitions ─────────────────────────────────────────────────
 server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
         tools: [
+            // ── Issues ──────────────────────────────────────
             {
                 name: "jira_list_issues",
-                description: "List Jira issues using JQL",
+                description: "List Jira issues using JQL. Returns key, summary, status, and assignee for each issue.",
                 inputSchema: {
                     type: "object",
                     properties: {
-                        jql: { type: "string", description: "JQL query string" },
-                        limit: { type: "number", description: "Max results", default: 10 }
+                        jql: { type: "string", description: "JQL query string (e.g., 'project = PROJ AND status = \"In Progress\"')" },
+                        limit: { type: "number", description: "Max results (default: 10)", default: 10 }
                     }
                 }
             },
             {
                 name: "jira_get_issue",
-                description: "Get details of a specific Jira issue",
+                description: "Get full details of a specific Jira issue including summary, description, status, assignee, priority, and comments.",
                 inputSchema: {
                     type: "object",
                     properties: {
-                        issueKey: { type: "string", description: "Issue Key (e.g. PROJ-123)" }
+                        issueKey: { type: "string", description: "Issue Key (e.g., PROJ-123)" }
                     },
                     required: ["issueKey"]
                 }
             },
             {
                 name: "jira_create_issue",
-                description: "Create a new Jira issue",
+                description: "Create a new Jira issue in a project. Returns the created issue key.",
                 inputSchema: {
                     type: "object",
                     properties: {
-                        projectKey: { type: "string", description: "Project Key" },
-                        summary: { type: "string", description: "Issue Summary" },
-                        description: { type: "string", description: "Issue Description" },
-                        issueType: { type: "string", description: "Issue Type (Bug, Story, etc)", default: "Task" }
+                        projectKey: { type: "string", description: "Project Key (e.g., PROJ)" },
+                        summary: { type: "string", description: "Issue summary/title" },
+                        description: { type: "string", description: "Issue description (plain text, will be converted to ADF)" },
+                        issueType: { type: "string", description: "Issue Type (Bug, Story, Task, Epic)", default: "Task" },
+                        priority: { type: "string", description: "Priority name (e.g., High, Medium, Low)" },
+                        assigneeId: { type: "string", description: "Assignee account ID" }
                     },
                     required: ["projectKey", "summary"]
+                }
+            },
+            {
+                name: "jira_transition_issue",
+                description: "Transition a Jira issue to a new status. First call with only issueKey to see available transitions, then call again with the transitionId.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        issueKey: { type: "string", description: "Issue Key (e.g., PROJ-123)" },
+                        transitionId: { type: "string", description: "Transition ID to execute. Omit to list available transitions." }
+                    },
+                    required: ["issueKey"]
+                }
+            },
+            {
+                name: "jira_assign_issue",
+                description: "Assign or unassign a Jira issue. Use accountId to assign, or null to unassign.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        issueKey: { type: "string", description: "Issue Key (e.g., PROJ-123)" },
+                        accountId: { type: ["string", "null"], description: "Account ID of the assignee. Set to null to unassign. Use 'me' to assign to yourself." }
+                    },
+                    required: ["issueKey"]
+                }
+            },
+            {
+                name: "jira_add_comment",
+                description: "Add a comment to a Jira issue.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        issueKey: { type: "string", description: "Issue Key (e.g., PROJ-123)" },
+                        body: { type: "string", description: "Comment text (plain text, will be converted to ADF)" }
+                    },
+                    required: ["issueKey", "body"]
+                }
+            },
+
+            // ── Projects & Sprints ──────────────────────────
+            {
+                name: "jira_list_projects",
+                description: "List all accessible Jira projects. Returns project key, name, lead, and style.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        limit: { type: "number", description: "Max results (default: 50)", default: 50 }
+                    }
+                }
+            },
+            {
+                name: "jira_list_sprints",
+                description: "List sprints for a Jira board. Requires a board ID.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        boardId: { type: "number", description: "Board ID (numeric)" },
+                        state: { type: "string", description: "Sprint state filter: active, future, closed (comma-separated)", default: "active,future" }
+                    },
+                    required: ["boardId"]
                 }
             }
         ]
     };
 });
 
-// Handle Tool Calls
+// ── Tool Handlers ────────────────────────────────────────────────────
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     try {
+        // ── jira_list_issues ────────────────────────────────
         if (name === "jira_list_issues") {
             const jql = args.jql || "";
             const limit = args.limit || 10;
             const data = await api.post('/search/jql', {
                 jql,
                 maxResults: limit,
-                fields: ['summary', 'status', 'assignee', 'description']
+                fields: ['summary', 'status', 'assignee', 'priority', 'created', 'updated']
             });
 
+            // Return a cleaner format for LLM consumption
+            const issues = (data.issues || []).map(i => ({
+                key: i.key,
+                summary: i.fields.summary,
+                status: i.fields.status?.name,
+                assignee: i.fields.assignee?.displayName || 'Unassigned',
+                priority: i.fields.priority?.name,
+                created: i.fields.created?.split('T')[0],
+                updated: i.fields.updated?.split('T')[0]
+            }));
+
             return {
-                content: [{ type: "text", text: JSON.stringify(data.issues, null, 2) }]
+                content: [{ type: "text", text: JSON.stringify(issues, null, 2) }]
             };
         }
 
+        // ── jira_get_issue ──────────────────────────────────
         if (name === "jira_get_issue") {
             const data = await api.get(`/issue/${args.issueKey}`);
+
+            // Return a cleaner summary for agents
+            const result = {
+                key: data.key,
+                summary: data.fields.summary,
+                status: data.fields.status?.name,
+                issueType: data.fields.issuetype?.name,
+                priority: data.fields.priority?.name,
+                assignee: data.fields.assignee?.displayName || 'Unassigned',
+                assigneeAccountId: data.fields.assignee?.accountId || null,
+                reporter: data.fields.reporter?.displayName,
+                created: data.fields.created,
+                updated: data.fields.updated,
+                description: data.fields.description,
+                labels: data.fields.labels,
+                comments: data.fields.comment?.comments?.map(c => ({
+                    author: c.author.displayName,
+                    body: c.body,
+                    created: c.created
+                })) || []
+            };
+
             return {
-                content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
+                content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
         }
 
+        // ── jira_create_issue ───────────────────────────────
         if (name === "jira_create_issue") {
             const body = {
                 fields: {
                     project: { key: args.projectKey },
                     summary: args.summary,
-                    description: args.description,
                     issuetype: { name: args.issueType || 'Task' }
                 }
             };
+
+            // Convert plain text description to ADF
+            if (args.description) {
+                body.fields.description = textToADF(args.description);
+            }
+
+            if (args.priority) {
+                body.fields.priority = { name: args.priority };
+            }
+
+            if (args.assigneeId) {
+                body.fields.assignee = { accountId: args.assigneeId };
+            }
+
             const data = await api.post('/issue', body);
             return {
-                content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
+                content: [{ type: "text", text: JSON.stringify({ key: data.key, self: data.self }, null, 2) }]
+            };
+        }
+
+        // ── jira_transition_issue ───────────────────────────
+        if (name === "jira_transition_issue") {
+            if (!args.transitionId) {
+                // List available transitions
+                const transData = await api.get(`/issue/${args.issueKey}/transitions`);
+                const issue = await api.get(`/issue/${args.issueKey}?fields=summary,status`);
+
+                const result = {
+                    issueKey: args.issueKey,
+                    summary: issue.fields.summary,
+                    currentStatus: issue.fields.status?.name,
+                    availableTransitions: (transData.transitions || []).map(t => ({
+                        id: t.id,
+                        name: t.name,
+                        toStatus: t.to.name
+                    }))
+                };
+
+                return {
+                    content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+                };
+            }
+
+            // Execute transition
+            await api.post(`/issue/${args.issueKey}/transitions`, {
+                transition: { id: args.transitionId }
+            });
+
+            return {
+                content: [{ type: "text", text: JSON.stringify({ success: true, issueKey: args.issueKey, transitionId: args.transitionId }) }]
+            };
+        }
+
+        // ── jira_assign_issue ───────────────────────────────
+        if (name === "jira_assign_issue") {
+            let accountId = args.accountId;
+
+            // Resolve "me" to actual account ID
+            if (accountId === 'me') {
+                const myself = await api.get('/myself');
+                accountId = myself.accountId;
+            }
+
+            await api.put(`/issue/${args.issueKey}/assignee`, {
+                accountId: accountId || null
+            });
+
+            return {
+                content: [{ type: "text", text: JSON.stringify({ success: true, issueKey: args.issueKey, assignedTo: accountId || 'unassigned' }) }]
+            };
+        }
+
+        // ── jira_add_comment ────────────────────────────────
+        if (name === "jira_add_comment") {
+            const data = await api.post(`/issue/${args.issueKey}/comment`, {
+                body: textToADF(args.body)
+            });
+
+            return {
+                content: [{ type: "text", text: JSON.stringify({ success: true, issueKey: args.issueKey, commentId: data.id }) }]
+            };
+        }
+
+        // ── jira_list_projects ──────────────────────────────
+        if (name === "jira_list_projects") {
+            const limit = args.limit || 50;
+            const data = await api.get(`/project/search?maxResults=${limit}`);
+
+            const projects = (data.values || []).map(p => ({
+                key: p.key,
+                name: p.name,
+                lead: p.lead?.displayName || 'N/A',
+                style: p.style,
+                projectType: p.projectTypeKey
+            }));
+
+            return {
+                content: [{ type: "text", text: JSON.stringify(projects, null, 2) }]
+            };
+        }
+
+        // ── jira_list_sprints ───────────────────────────────
+        if (name === "jira_list_sprints") {
+            const state = args.state || 'active,future';
+            const data = await api.agileGet(`/board/${args.boardId}/sprint?state=${state}`);
+
+            const sprints = (data.values || []).map(s => ({
+                id: s.id,
+                name: s.name,
+                state: s.state,
+                startDate: s.startDate?.split('T')[0] || null,
+                endDate: s.endDate?.split('T')[0] || null,
+                goal: s.goal || null
+            }));
+
+            return {
+                content: [{ type: "text", text: JSON.stringify(sprints, null, 2) }]
             };
         }
 

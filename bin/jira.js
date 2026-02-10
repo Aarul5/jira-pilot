@@ -19,6 +19,8 @@ program
 Examples:
   $ jira issue list
   $ jira issue view PROJ-123
+  $ jira issue create
+  $ jira board list
   $ jira sprint list --board 123
   $ jira ai summarize PROJ-123
     `);
@@ -27,6 +29,7 @@ import { registerConfigCommand } from '../src/commands/config.js';
 import { registerIssueCommand } from '../src/commands/issue.js';
 import { registerProjectCommand } from '../src/commands/project.js';
 import { registerSprintCommand } from '../src/commands/sprint.js';
+import { registerBoardCommand } from '../src/commands/board.js';
 import { registerGitCommand } from '../src/commands/git.js';
 import { registerAiCommand } from '../src/commands/ai.js';
 import { registerMcpCommand } from '../src/commands/mcp.js';
@@ -36,6 +39,7 @@ registerConfigCommand(program);
 registerIssueCommand(program);
 registerProjectCommand(program);
 registerSprintCommand(program);
+registerBoardCommand(program);
 registerGitCommand(program);
 registerAiCommand(program);
 registerMcpCommand(program);

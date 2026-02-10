@@ -1,0 +1,66 @@
+import { Command } from 'commander';
+import chalk from 'chalk';
+import { table } from 'table';
+import { api } from '../services/api-service.js';
+import ora from 'ora';
+import { handleCommandError } from '../utils/error-handler.js';
+
+export function registerBoardCommand(program) {
+    const boardCmd = new Command('board')
+        .description('Manage Jira boards')
+        .addHelpText('after', `
+Common Actions:
+  $ jira board list                   # List all boards
+  $ jira board list -p PROJ           # List boards for a project
+        `);
+
+    boardCmd
+        .command('list')
+        .description('List Jira boards')
+        .option('-p, --project <key>', 'Filter by project key')
+        .option('-t, --type <type>', 'Filter by board type (scrum, kanban, simple)')
+        .option('-l, --limit <n>', 'Max results', '50')
+        .action(async (options) => {
+            const spinner = ora('Fetching boards...').start();
+            try {
+                const params = new URLSearchParams();
+                params.set('maxResults', options.limit);
+
+                if (options.project) {
+                    params.set('projectKeyOrId', options.project);
+                }
+                if (options.type) {
+                    params.set('type', options.type);
+                }
+
+                const data = await api.agileGet(`/board?${params.toString()}`);
+                spinner.stop();
+
+                if (!data.values || data.values.length === 0) {
+                    console.log(chalk.yellow('No boards found.'));
+                    return;
+                }
+
+                const tableData = [
+                    [chalk.bold('ID'), chalk.bold('Name'), chalk.bold('Type'), chalk.bold('Project')]
+                ];
+
+                data.values.forEach(b => {
+                    tableData.push([
+                        b.id,
+                        b.name,
+                        b.type,
+                        b.location?.projectKey || '-'
+                    ]);
+                });
+
+                console.log(table(tableData));
+                console.log(chalk.grey(`Showing ${data.values.length} board(s)`));
+
+            } catch (e) {
+                handleCommandError(spinner, e, 'Failed to list boards');
+            }
+        });
+
+    program.addCommand(boardCmd);
+}
