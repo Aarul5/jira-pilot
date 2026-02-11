@@ -1,6 +1,6 @@
 # Jira Pilot ✈️
 
-**The AI-Powered Jira CLI for Humans and Agents.**
+**The AI-Powered Jira CLI and MCP Server for Humans and Agents.**
 
 `jira-pilot` is a next-generation CLI that combines traditional developer tools with modern AI capabilities.
 
