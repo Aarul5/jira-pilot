@@ -48,14 +48,6 @@ npm install -g jira-pilot
 
 After installing, the `jira` command is available globally.
 
-### Local Development
-```bash
-git clone https://github.com/Aarul5/jira-pilot.git
-cd jira-pilot
-npm install
-npm link   # Makes 'jira' command available globally
-```
-
 ---
 
 ## ⚙️ Configuration
@@ -91,7 +83,7 @@ jira config profiles        # List all saved profiles
 jira config delete-profile work
 ```
 
-> **Note:** Credentials are stored securely using the `conf` library in your system's config directory.
+> **Note:** Credentials are stored securely using a custom `ConfigStore` in your system's config directory.
 
 ---
 
@@ -451,14 +443,13 @@ Bulk Subcommands:
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to submit a pull request and set up your development environment.
 
-```bash
-git clone https://github.com/Aarul5/jira-pilot.git
-cd jira-pilot
-npm install
-npm link
-```
+Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
+
+## 🛡️ Security
+
+If you discover a security vulnerability within this project, please check [SECURITY.md](SECURITY.md) for our reporting policy.
 
 ## 📄 License
 
