@@ -30,6 +30,7 @@ jobs:
 
       - name: Syntax check
         run: |
+          shopt -s globstar
           for f in src/**/*.js bin/*.js; do
             node -c "$f"
           done
