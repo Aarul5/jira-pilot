@@ -49,21 +49,21 @@ export function registerConfigCommand(program) {
                         message: 'Select AI Provider:',
                         choices: ['openai', 'gemini', 'anthropic'],
                         initial: current.aiProvider || 'openai',
-                        skip: (state) => !state.answers.aiEnabled
+                        skip: function () { return !this.state.answers.aiEnabled; }
                     },
                     {
                         type: 'password',
                         name: 'aiKey',
                         message: 'AI API Key:',
                         initial: current.aiKey ? '*****' : undefined,
-                        skip: (state) => !state.answers.aiEnabled
+                        skip: function () { return !this.state.answers.aiEnabled; }
                     },
                     {
                         type: 'password',
                         name: 'githubToken',
-                        message: 'GitHub Personal Access Token (for AI Code Review):',
+                        message: 'GitHub Personal Access Token (for AI Code Review) [Optional, Press Enter to skip]:',
                         initial: current.githubToken ? '*****' : undefined,
-                        skip: (state) => !state.answers.aiEnabled
+                        skip: function () { return !this.state.answers.aiEnabled; }
                     }
                 ]);
 
