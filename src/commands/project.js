@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { table } from 'table';
+import Table from 'cli-table3';
 import { api } from '../services/api-service.js';
 import ora from 'ora';
 import { handleCommandError } from '../utils/error-handler.js';
@@ -36,12 +36,12 @@ Common Actions:
                     return;
                 }
 
-                const tableData = [
-                    [chalk.bold('Key'), chalk.bold('Name'), chalk.bold('Leader'), chalk.bold('Style')]
-                ];
+                const table = new Table({
+                    head: [chalk.bold('Key'), chalk.bold('Name'), chalk.bold('Leader'), chalk.bold('Style')]
+                });
 
                 data.values.forEach(p => {
-                    tableData.push([
+                    table.push([
                         chalk.cyan(p.key),
                         p.name,
                         p.lead ? p.lead.displayName : 'N/A',
@@ -49,7 +49,7 @@ Common Actions:
                     ]);
                 });
 
-                console.log(table(tableData));
+                console.log(table.toString());
             } catch (e) {
                 handleCommandError(spinner, e, 'Failed to list projects');
             }

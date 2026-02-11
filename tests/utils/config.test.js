@@ -1,28 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('conf', () => {
+vi.mock('../../src/utils/config-store.js', () => {
     let store = {};
     return {
-        default: class MockConf {
+        default: class MockConfigStore {
             constructor() { }
             get(key) {
-                if (key === 'profiles') {
-                    const profiles = {};
-                    let found = false;
-                    Object.keys(store).forEach(k => {
-                        if (k.startsWith('profiles.')) {
-                            const profileName = k.split('.')[1];
-                            profiles[profileName] = store[k];
-                            found = true;
-                        }
-                    });
-                    return found ? profiles : undefined;
+                if (!key) return store;
+                const parts = key.split('.');
+                let current = store;
+                for (const part of parts) {
+                    if (current === undefined || current === null) return undefined;
+                    current = current[part];
                 }
-                return store[key];
+                return current;
             }
-            set(key, value) { store[key] = value; }
-            delete(key) { delete store[key]; }
-            has(key) { return key in store; }
+            set(key, value) {
+                const parts = key.split('.');
+                const last = parts.pop();
+                let current = store;
+                for (const part of parts) {
+                    if (!current[part]) current[part] = {};
+                    current = current[part];
+                }
+                current[last] = value;
+            }
+            delete(key) {
+                const parts = key.split('.');
+                const last = parts.pop();
+                let current = store;
+                for (const part of parts) {
+                    if (current === undefined || current === null) return;
+                    current = current[part];
+                }
+                if (current) delete current[last];
+            }
             clear() { store = {}; }
         }
     };

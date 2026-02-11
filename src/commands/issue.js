@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { table } from 'table';
+import Table from 'cli-table3';
 import { api } from '../services/api-service.js';
 import { aiService } from '../services/ai-service.js';
 import ora from 'ora';
@@ -128,12 +128,12 @@ Examples:
                     return;
                 }
 
-                const tableData = [
-                    [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee'), chalk.bold('Created'), chalk.bold('Updated')]
-                ];
+                const table = new Table({
+                    head: [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee'), chalk.bold('Created'), chalk.bold('Updated')]
+                });
 
                 data.issues.forEach(i => {
-                    tableData.push([
+                    table.push([
                         chalk.cyan(i.key),
                         i.fields.summary ? (i.fields.summary.length > 50 ? i.fields.summary.substring(0, 47) + '...' : i.fields.summary) : '',
                         i.fields.status ? i.fields.status.name : '',
@@ -143,7 +143,7 @@ Examples:
                     ]);
                 });
 
-                console.log(table(tableData));
+                console.log(table.toString());
 
             } catch (e) {
                 handleCommandError(spinner, e, 'Failed to list issues');
@@ -815,18 +815,18 @@ Examples:
                     return;
                 }
 
-                const tableData = [
-                    [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee')]
-                ];
+                const table = new Table({
+                    head: [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee')]
+                });
                 data.issues.forEach(i => {
-                    tableData.push([
+                    table.push([
                         chalk.cyan(i.key),
                         i.fields.summary ? (i.fields.summary.length > 55 ? i.fields.summary.substring(0, 52) + '...' : i.fields.summary) : '',
                         i.fields.status?.name || '',
                         i.fields.assignee?.displayName || 'Unassigned'
                     ]);
                 });
-                console.log(table(tableData));
+                console.log(table.toString());
                 console.log(chalk.grey(`Found ${data.issues.length} result(s)`));
 
             } catch (e) {

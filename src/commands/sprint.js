@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { table } from 'table';
+import Table from 'cli-table3';
 import { api } from '../services/api-service.js';
 import ora from 'ora';
 import { handleCommandError } from '../utils/error-handler.js';
@@ -54,12 +54,12 @@ Common Actions:
                     return;
                 }
 
-                const tableData = [
-                    [chalk.bold('ID'), chalk.bold('Name'), chalk.bold('State'), chalk.bold('Dates')]
-                ];
+                const table = new Table({
+                    head: [chalk.bold('ID'), chalk.bold('Name'), chalk.bold('State'), chalk.bold('Dates')]
+                });
 
                 data.values.forEach(s => {
-                    tableData.push([
+                    table.push([
                         s.id,
                         s.name,
                         s.state === 'active' ? chalk.green(s.state) : s.state,
@@ -67,7 +67,7 @@ Common Actions:
                     ]);
                 });
 
-                console.log(table(tableData));
+                console.log(table.toString());
 
             } catch (e) {
                 handleCommandError(spinner, e, 'Failed to list sprints');
@@ -129,11 +129,11 @@ Examples:
                     return;
                 }
 
-                const tableData = [
-                    [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee'), chalk.bold('Priority')]
-                ];
+                const table = new Table({
+                    head: [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee'), chalk.bold('Priority')]
+                });
                 issues.issues.forEach(i => {
-                    tableData.push([
+                    table.push([
                         chalk.cyan(i.key),
                         i.fields.summary ? (i.fields.summary.length > 50 ? i.fields.summary.substring(0, 47) + '...' : i.fields.summary) : '',
                         i.fields.status?.name || '',
@@ -141,7 +141,7 @@ Examples:
                         i.fields.priority?.name || ''
                     ]);
                 });
-                console.log(table(tableData));
+                console.log(table.toString());
                 console.log(chalk.grey(`${issues.issues.length} issue(s) in sprint`));
 
             } catch (e) {

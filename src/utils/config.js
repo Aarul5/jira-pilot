@@ -1,37 +1,6 @@
-import Conf from 'conf';
+import ConfigStore from './config-store.js';
 
-const schema = {
-    jiraUrl: {
-        type: 'string',
-        format: 'url'
-    },
-    email: {
-        type: 'string',
-        format: 'email'
-    },
-    apiToken: {
-        type: 'string'
-    },
-    aiKey: {
-        type: 'string'
-    },
-    aiProvider: {
-        type: 'string',
-        default: 'openai'
-    },
-    aiEnabled: {
-        type: 'boolean',
-        default: false
-    },
-    githubToken: {
-        type: 'string'
-    }
-};
-
-const config = new Conf({
-    projectName: 'jira-pilot',
-    schema
-});
+const config = new ConfigStore('jira-pilot');
 
 export const getCredentials = () => {
     return {

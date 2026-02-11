@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { table } from 'table';
+import Table from 'cli-table3';
 import ora from 'ora';
 import { api } from '../services/api-service.js';
 import { handleCommandError } from '../utils/error-handler.js';
@@ -51,9 +51,10 @@ Examples:
                 console.log(chalk.bold('\n📋 Your Open Issues') + chalk.grey(` (${myIssues.total || 0} total)`));
 
                 if (myIssues.issues && myIssues.issues.length > 0) {
-                    const openTable = [
-                        [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Priority')]
-                    ];
+                    const openTable = new Table({
+                        head: [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Priority')]
+                    });
+
                     myIssues.issues.forEach(i => {
                         const prio = i.fields.priority?.name || '';
                         const prioColor = prio === 'Highest' || prio === 'High' ? chalk.red(prio) : prio === 'Low' || prio === 'Lowest' ? chalk.blue(prio) : prio;
@@ -64,7 +65,7 @@ Examples:
                             prioColor
                         ]);
                     });
-                    console.log(table(openTable));
+                    console.log(openTable.toString());
                 } else {
                     console.log(chalk.green('  🎉 No open issues — nice work!\n'));
                 }

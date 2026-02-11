@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { table } from 'table';
+import Table from 'cli-table3';
 import { api } from '../services/api-service.js';
 import ora from 'ora';
 import { handleCommandError } from '../utils/error-handler.js';
@@ -50,12 +50,12 @@ Common Actions:
                     return;
                 }
 
-                const tableData = [
-                    [chalk.bold('ID'), chalk.bold('Name'), chalk.bold('Type'), chalk.bold('Project')]
-                ];
+                const table = new Table({
+                    head: [chalk.bold('ID'), chalk.bold('Name'), chalk.bold('Type'), chalk.bold('Project')]
+                });
 
                 data.values.forEach(b => {
-                    tableData.push([
+                    table.push([
                         b.id,
                         b.name,
                         b.type,
@@ -63,7 +63,7 @@ Common Actions:
                     ]);
                 });
 
-                console.log(table(tableData));
+                console.log(table.toString());
                 console.log(chalk.grey(`Showing ${data.values.length} board(s)`));
 
             } catch (e) {
