@@ -41,6 +41,9 @@
 
 ## 🚀 Installation
 
+### Prerequisites
+- Node.js 20.0.0 or higher
+
 ### Global Install (Recommended)
 ```bash
 npm install -g jira-pilot
