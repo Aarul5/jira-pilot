@@ -146,12 +146,7 @@ Examples:
                 console.log(table(tableData));
 
             } catch (e) {
-                spinner.fail('Failed to list issues');
-                if (e.response) {
-                    console.error(chalk.red(`Error ${e.response.status}: `), e.response.data);
-                } else {
-                    console.error(chalk.red(e.message));
-                }
+                handleCommandError(spinner, e, 'Failed to list issues');
             }
         });
 
@@ -202,16 +197,7 @@ Examples:
                 }
                 console.log('');
             } catch (e) {
-                spinner.fail('Failed to fetch issue');
-                if (e.response) {
-                    if (e.response.status === 404) {
-                        console.error(chalk.red(`Issue "${issueKey}" not found.`));
-                    } else {
-                        console.error(chalk.red(`Error ${e.response.status}: `), e.response.data);
-                    }
-                } else {
-                    console.error(chalk.red(e.message));
-                }
+                handleCommandError(spinner, e, 'Failed to fetch issue');
             }
         });
 
@@ -481,17 +467,7 @@ Examples:
                 console.log(chalk.grey(`View it: jira issue view ${result.key}`));
 
             } catch (e) {
-                if (e === '' || e.message === '') {
-                    // User cancelled prompt (Ctrl+C)
-                    console.log(chalk.yellow('\nCancelled.'));
-                    return;
-                }
-                console.error(chalk.red('\nFailed to create issue:'));
-                if (e.response) {
-                    console.error(chalk.red(`Error ${e.response.status}: `), JSON.stringify(e.response.data, null, 2));
-                } else {
-                    console.error(chalk.red(e.message));
-                }
+                handleCommandError(spinner, e, 'Failed to create issue');
             }
         });
 
@@ -570,21 +546,7 @@ Examples:
                 execSpinner.succeed(chalk.green(`${issueKey} transitioned: ${currentStatus} → ${chalk.bold(targetTransition.to.name)}`));
 
             } catch (e) {
-                spinner.stop();
-                if (e === '' || e.message === '') {
-                    console.log(chalk.yellow('\nCancelled.'));
-                    return;
-                }
-                console.error(chalk.red('\nFailed to transition issue:'));
-                if (e.response) {
-                    if (e.response.status === 404) {
-                        console.error(chalk.red(`Issue "${issueKey}" not found.`));
-                    } else {
-                        console.error(chalk.red(`Error ${e.response.status}: `), e.response.data);
-                    }
-                } else {
-                    console.error(chalk.red(e.message));
-                }
+                handleCommandError(spinner, e, 'Failed to transition issue');
             }
         });
     // ── ASSIGN ────────────────────────────────────────────────────────
@@ -672,16 +634,7 @@ Examples:
                 spinner.succeed(chalk.green(`${issueKey} ${assigneeId === 'none' ? 'unassigned' : 'assigned'} successfully.`));
 
             } catch (e) {
-                if (e === '' || e.message === '') {
-                    console.log(chalk.yellow('\nCancelled.'));
-                    return;
-                }
-                console.error(chalk.red('\nFailed to assign issue:'));
-                if (e.response) {
-                    console.error(chalk.red(`Error ${e.response.status}: `), e.response.data);
-                } else {
-                    console.error(chalk.red(e.message));
-                }
+                handleCommandError(spinner, e, 'Failed to assign issue');
             }
         });
 
@@ -727,20 +680,7 @@ Examples:
                 spinner.succeed(chalk.green(`Comment added to ${issueKey}.`));
 
             } catch (e) {
-                if (e === '' || e.message === '') {
-                    console.log(chalk.yellow('\nCancelled.'));
-                    return;
-                }
-                console.error(chalk.red('\nFailed to add comment:'));
-                if (e.response) {
-                    if (e.response.status === 404) {
-                        console.error(chalk.red(`Issue "${issueKey}" not found.`));
-                    } else {
-                        console.error(chalk.red(`Error ${e.response.status}: `), e.response.data);
-                    }
-                } else {
-                    console.error(chalk.red(e.message));
-                }
+                handleCommandError(spinner, e, 'Failed to add comment');
             }
         });
 

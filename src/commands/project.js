@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { table } from 'table';
 import { api } from '../services/api-service.js';
 import ora from 'ora';
+import { handleCommandError } from '../utils/error-handler.js';
 
 export function registerProjectCommand(program) {
     const projectCmd = new Command('project')
@@ -50,8 +51,7 @@ Common Actions:
 
                 console.log(table(tableData));
             } catch (e) {
-                spinner.fail('Failed to list projects');
-                console.error(e.message);
+                handleCommandError(spinner, e, 'Failed to list projects');
             }
         });
 

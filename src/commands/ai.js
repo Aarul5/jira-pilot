@@ -6,6 +6,7 @@ import { api } from '../services/api-service.js';
 import { aiService } from '../services/ai-service.js';
 import { parseADF } from '../utils/adf-parser.js';
 import { validateIssueKey } from '../utils/validators.js';
+import { handleCommandError } from '../utils/error-handler.js';
 import { reviewAction } from './ai-actions/review.js';
 import { planAction } from './ai-actions/plan.js';
 import { standupAction } from './ai-actions/standup.js';
@@ -60,17 +61,7 @@ Provide a concise summary of the current status, key discussion points, and next
                 console.log(aiResponse);
 
             } catch (e) {
-                spinner.stop();
-                if (e.response && e.response.config && e.response.config.url.includes('/issue/')) {
-                    console.error(chalk.red(`\nError: Issue "${issueKey}" not found.`));
-                } else {
-                    console.error(chalk.red('\nFailed to generate summary:'));
-                    if (e.response) {
-                        console.error(chalk.red(`API Error ${e.response.status}: `), e.response.data);
-                    } else {
-                        console.error(chalk.red(e.message));
-                    }
-                }
+                handleCommandError(spinner, e, `Failed to summarize ${issueKey}`);
             }
         });
 
@@ -132,12 +123,7 @@ Keep it professional and concise. Output in plain text (not markdown headers, us
                 console.log(chalk.grey('\nTip: Copy this into "jira issue create" or use it as a starting point.'));
 
             } catch (e) {
-                if (e === '' || e.message === '') {
-                    console.log(chalk.yellow('\nCancelled.'));
-                    return;
-                }
-                console.error(chalk.red('\nFailed to generate draft:'));
-                console.error(chalk.red(e.message));
+                handleCommandError(null, e, 'Failed to generate draft');
             }
         });
 
@@ -198,13 +184,7 @@ Keep suggestions actionable and concise.
                 console.log(aiResponse);
 
             } catch (e) {
-                spinner.stop();
-                if (e.response && e.response.status === 404) {
-                    console.error(chalk.red(`\nError: Issue "${issueKey}" not found.`));
-                } else {
-                    console.error(chalk.red('\nFailed to generate suggestions:'));
-                    console.error(chalk.red(e.message));
-                }
+                handleCommandError(spinner, e, `Failed to suggest for ${issueKey}`);
             }
         });
 

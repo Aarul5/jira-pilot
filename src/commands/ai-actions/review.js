@@ -7,6 +7,7 @@ import { aiService } from '../../services/ai-service.js';
 import { validateIssueKey } from '../../utils/validators.js';
 import { getCredentials } from '../../utils/config.js';
 import { parseADF } from '../../utils/adf-parser.js';
+import { handleCommandError } from '../../utils/error-handler.js';
 
 export async function reviewAction(issueKey, options) {
     const check = validateIssueKey(issueKey);
@@ -96,14 +97,6 @@ export async function reviewAction(issueKey, options) {
         console.log(chalk.dim(`\nPR Link: ${pr.html_url}`));
 
     } catch (e) {
-        spinner.stop();
-        if (e.response?.status === 404) {
-            console.error(chalk.red(`Resource not found (Issue or Repo). Check permissions.`));
-        } else if (e.response?.status === 401) {
-            console.error(chalk.red(`GitHub/Jira Authentication failed. Check your tokens.`));
-        } else {
-            console.error(chalk.red(`Error: ${e.message}`));
-            if (e.response?.data) console.error(chalk.dim(JSON.stringify(e.response.data)));
-        }
+        handleCommandError(spinner, e, `Failed to review ${issueKey}`);
     }
 }

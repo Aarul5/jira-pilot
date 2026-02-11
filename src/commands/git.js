@@ -5,6 +5,7 @@ import { api } from '../services/api-service.js';
 import ora from 'ora';
 import enquirer from 'enquirer';
 import { validateIssueKey } from '../utils/validators.js';
+import { handleCommandError } from '../utils/error-handler.js';
 
 export function registerGitCommand(program) {
     const gitCmd = new Command('git')
@@ -50,12 +51,7 @@ export function registerGitCommand(program) {
                 }
 
             } catch (e) {
-                spinner.fail('Failed to fetch issue');
-                if (e.response) {
-                    console.error(chalk.red(`Error ${e.response.status}: `), e.response.data);
-                } else {
-                    console.error(chalk.red(e.message));
-                }
+                handleCommandError(spinner, e, 'Failed to create branch');
             }
         });
 

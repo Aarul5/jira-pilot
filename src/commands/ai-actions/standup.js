@@ -3,6 +3,7 @@ import ora from 'ora';
 import { api } from '../../services/api-service.js';
 import { aiService } from '../../services/ai-service.js';
 import { parseADF } from '../../utils/adf-parser.js';
+import { handleCommandError } from '../../utils/error-handler.js';
 
 export async function standupAction(options) {
     const spinner = ora('Analyzing your recent activity...').start();
@@ -36,7 +37,6 @@ export async function standupAction(options) {
         console.log(report);
 
     } catch (e) {
-        spinner.stop();
-        console.error(chalk.red(`Error: ${e.message}`));
+        handleCommandError(spinner, e, 'Failed to generate standup');
     }
 }

@@ -5,6 +5,7 @@ import { api } from '../../services/api-service.js';
 import { aiService } from '../../services/ai-service.js';
 import { validateIssueKey } from '../../utils/validators.js';
 import { parseADF } from '../../utils/adf-parser.js';
+import { handleCommandError } from '../../utils/error-handler.js';
 
 export async function planAction(epicKey, options) {
     const check = validateIssueKey(epicKey);
@@ -113,7 +114,6 @@ export async function planAction(epicKey, options) {
         console.log(chalk.green(`\nDone! Created ${results.length} issues linked to ${epicKey}.`));
 
     } catch (e) {
-        spinner.stop();
-        console.error(chalk.red(`Error: ${e.message}`));
+        handleCommandError(spinner, e, `Failed to plan ${epicKey}`);
     }
 }
