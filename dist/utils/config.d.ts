@@ -1,0 +1,10 @@
+import { ConfigProfile } from '../types.js';
+export declare const getCredentials: () => Partial<ConfigProfile>;
+export declare const setCredentials: ({ jiraUrl, email, apiToken, aiConfig, aiProvider, enableAi, githubToken }: Partial<ConfigProfile>) => void;
+export declare const clearCredentials: () => void;
+export declare const hasCredentials: () => boolean;
+export declare const saveProfile: (name: string) => void;
+export declare const loadProfile: (name: string) => boolean;
+export declare const deleteProfile: (name: string) => void;
+export declare const listProfiles: () => string[];
+export declare const getActiveProfile: () => any;
