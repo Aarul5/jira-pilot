@@ -92,6 +92,114 @@ Examples:
             handleCommandError(spinner, e, 'Bulk transition failed');
         }
     });
+    // ── BULK ASSIGN ──────────────────────────────────────────────────
+    bulkCmd
+        .command('assign')
+        .description('Assign multiple issues')
+        .requiredOption('-j, --jql <query>', 'JQL query')
+        .option('-a, --assignee <id>', 'AccountId or "me"')
+        .option('-y, --yes', 'Skip confirmation')
+        .action(async (options) => {
+        const spinner = ora('Finding issues...').start();
+        try {
+            const data = await api.post('/search/jql', {
+                jql: options.jql,
+                maxResults: 50,
+                fields: ['summary', 'assignee']
+            });
+            spinner.stop();
+            if (!data.issues?.length) {
+                console.log(chalk.yellow('No issues found.'));
+                return;
+            }
+            console.log(chalk.bold(`Found ${data.issues.length} issue(s):`));
+            data.issues.forEach((i) => console.log(`  ${i.key}: ${i.fields.summary} (${i.fields.assignee?.displayName || 'Unassigned'})`));
+            let assigneeId = options.assignee;
+            if (!assigneeId) {
+                const { userId } = await enquirer.prompt({
+                    type: 'input',
+                    name: 'userId',
+                    message: 'Enter Account ID (or "me"):',
+                    validate: (val) => val.length > 0
+                });
+                assigneeId = userId;
+            }
+            if (assigneeId === 'me') {
+                const me = await api.get('/myself');
+                assigneeId = me.accountId;
+            }
+            if (!options.yes) {
+                const { confirm } = await enquirer.prompt({
+                    type: 'confirm',
+                    name: 'confirm',
+                    message: `Assign ${data.issues.length} issues to ${assigneeId}?`
+                });
+                if (!confirm)
+                    return;
+            }
+            const processSpinner = ora('Assigning...').start();
+            for (const issue of data.issues) {
+                await api.put(`/issue/${issue.key}/assignee`, { accountId: assigneeId });
+            }
+            processSpinner.succeed('Bulk assign complete.');
+        }
+        catch (e) {
+            handleCommandError(spinner, e, 'Bulk assign failed');
+        }
+    });
+    // ── BULK LABEL ───────────────────────────────────────────────────
+    bulkCmd
+        .command('label')
+        .description('Add or remove labels from multiple issues')
+        .requiredOption('-j, --jql <query>', 'JQL query')
+        .option('--add <labels>', 'Comma-separated labels to add')
+        .option('--remove <labels>', 'Comma-separated labels to remove')
+        .option('-y, --yes', 'Skip confirmation')
+        .action(async (options) => {
+        if (!options.add && !options.remove) {
+            console.log(chalk.red('Must specify --add or --remove'));
+            return;
+        }
+        const spinner = ora('Finding issues...').start();
+        try {
+            const data = await api.post('/search/jql', {
+                jql: options.jql,
+                maxResults: 50,
+                fields: ['summary', 'labels']
+            });
+            spinner.stop();
+            if (!data.issues?.length) {
+                console.log(chalk.yellow('No issues found.'));
+                return;
+            }
+            console.log(chalk.bold(`Found ${data.issues.length} issue(s).`));
+            if (!options.yes) {
+                const { confirm } = await enquirer.prompt({
+                    type: 'confirm',
+                    name: 'confirm',
+                    message: `Update labels for ${data.issues.length} issues?`
+                });
+                if (!confirm)
+                    return;
+            }
+            const processSpinner = ora('Updating labels...').start();
+            const addList = options.add ? options.add.split(',').map((l) => l.trim()) : [];
+            const removeList = options.remove ? options.remove.split(',').map((l) => l.trim()) : [];
+            for (const issue of data.issues) {
+                const currentLabels = issue.fields.labels || [];
+                let newLabels = new Set(currentLabels);
+                addList.forEach((l) => newLabels.add(l));
+                removeList.forEach((l) => newLabels.delete(l));
+                await api.put(`/issue/${issue.key}`, {
+                    fields: { labels: Array.from(newLabels) }
+                });
+            }
+            processSpinner.succeed('Bulk labels updated.');
+        }
+        catch (e) {
+            handleCommandError(spinner, e, 'Bulk label failed');
+        }
+    });
     program.addCommand(bulkCmd);
 }
 //# sourceMappingURL=bulk.js.map

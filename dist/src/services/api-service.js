@@ -84,6 +84,21 @@ export class ApiService {
         const response = await this.client.delete(url, config);
         return response.data;
     }
+    async upload(url, formData) {
+        this.ensureClient();
+        // Jira requires this header for attachments
+        const headers = {
+            'X-Atlassian-Token': 'no-check'
+        };
+        // If using 'form-data' package, it has getHeaders().
+        // If using native FormData, axios/adapter handles Content-Type + boundary.
+        if (formData.getHeaders) {
+            Object.assign(headers, formData.getHeaders());
+        }
+        const config = { headers };
+        const response = await this.client.post(url, formData, config);
+        return response.data;
+    }
     // ── Agile REST API v1 Methods ───────────────────────────────────
     async agileGet(url, config = {}) {
         this.ensureClient();

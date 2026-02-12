@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import { api } from '../services/api-service.js';
 import ora from 'ora';
+import enquirer from 'enquirer';
 import { handleCommandError } from '../utils/error-handler.js';
 export function registerSprintCommand(program) {
     const sprintCmd = new Command('sprint')
@@ -129,6 +130,109 @@ Examples:
         }
         catch (e) {
             handleCommandError(spinner, e, 'Failed to list sprint issues');
+        }
+    });
+    // ── START SPRINT ──────────────────────────────────────────────────
+    sprintCmd
+        .command('start')
+        .description('Start a future sprint')
+        .argument('<sprintId>', 'Sprint ID')
+        .option('--start-date <date>', 'Start date (YYYY-MM-DD)')
+        .option('--end-date <date>', 'End date (YYYY-MM-DD)')
+        .action(async (sprintId, options) => {
+        const spinner = ora(`Fetching sprint ${sprintId}...`).start();
+        try {
+            const sprint = await api.agileGet(`/sprint/${sprintId}`);
+            if (sprint.state === 'active') {
+                spinner.fail(`Sprint "${sprint.name}" is already active.`);
+                return;
+            }
+            if (sprint.state === 'closed') {
+                spinner.fail(`Sprint "${sprint.name}" is closed.`);
+                return;
+            }
+            spinner.stop();
+            let startDate = options.startDate;
+            let endDate = options.endDate;
+            if (!startDate || !endDate) {
+                console.log(chalk.bold(`\nStarting Sprint: ${sprint.name}`));
+                const now = new Date();
+                const twoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+                const answers = await enquirer.prompt([
+                    {
+                        type: 'input',
+                        name: 'startDate',
+                        message: 'Start Date (YYYY-MM-DD):',
+                        initial: now.toISOString().split('T')[0],
+                        skip: !!startDate
+                    },
+                    {
+                        type: 'input',
+                        name: 'endDate',
+                        message: 'End Date (YYYY-MM-DD):',
+                        initial: twoWeeks.toISOString().split('T')[0],
+                        skip: !!endDate
+                    }
+                ]);
+                if (!startDate)
+                    startDate = answers.startDate;
+                if (!endDate)
+                    endDate = answers.endDate;
+            }
+            // Append time to dates if missing (Jira requires ISO with time)
+            const formatISO = (dateStr) => {
+                return dateStr.includes('T') ? dateStr : `${dateStr}T10:00:00.000+0000`;
+            };
+            const updateSpinner = ora('Starting sprint...').start();
+            await api.agilePost(`/sprint/${sprintId}`, {
+                state: 'active',
+                startDate: formatISO(startDate),
+                endDate: formatISO(endDate)
+            });
+            updateSpinner.succeed(chalk.green(`Sprint "${chalk.bold(sprint.name)}" is now ACTIVE.`));
+        }
+        catch (e) {
+            handleCommandError(spinner, e, 'Failed to start sprint');
+        }
+    });
+    // ── COMPLETE SPRINT ───────────────────────────────────────────────
+    sprintCmd
+        .command('complete')
+        .description('Complete (close) an active sprint')
+        .argument('<sprintId>', 'Sprint ID')
+        .action(async (sprintId) => {
+        const spinner = ora(`Fetching sprint ${sprintId}...`).start();
+        try {
+            const sprint = await api.agileGet(`/sprint/${sprintId}`);
+            if (sprint.state !== 'active') {
+                spinner.fail(`Sprint "${sprint.name}" is not active (State: ${sprint.state}).`);
+                return;
+            }
+            spinner.stop();
+            const { confirmed } = await enquirer.prompt({
+                type: 'confirm',
+                name: 'confirmed',
+                message: `Are you sure you want to complete sprint "${chalk.cyan(sprint.name)}"?`,
+                initial: false
+            });
+            if (!confirmed)
+                return;
+            const closeSpinner = ora('Completing sprint...').start();
+            // Note: If there are incomplete issues, Jira API might error or require specific handling (swap).
+            // For simplified flow, we try basic close. If it fails, we inform user.
+            await api.agilePost(`/sprint/${sprintId}`, {
+                state: 'closed'
+            });
+            closeSpinner.succeed(chalk.green(`Sprint "${chalk.bold(sprint.name)}" completed.`));
+        }
+        catch (e) {
+            if (e.response && e.response.status === 400) {
+                // Check if it mentions incomplete issues
+                handleCommandError(spinner, e, 'Failed to complete sprint (Check if there are incomplete issues that need moving)');
+            }
+            else {
+                handleCommandError(spinner, e, 'Failed to complete sprint');
+            }
         }
     });
     program.addCommand(sprintCmd);

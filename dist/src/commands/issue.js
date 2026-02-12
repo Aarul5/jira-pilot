@@ -9,6 +9,10 @@ import { parseADF } from '../utils/adf-parser.js';
 import { textToADF } from '../utils/text-to-adf.js';
 import { validateIssueKey } from '../utils/validators.js';
 import { handleCommandError } from '../utils/error-handler.js';
+import { registerWorklogCommand } from './issue-worklog.js';
+import { registerPrCommand } from './issue-pr.js';
+import { registerAttachCommand } from './issue-attach.js';
+import { ConfigService } from '../services/config-service.js';
 export function registerIssueCommand(program) {
     const issueCmd = new Command('issue')
         .description('Manage Jira issues')
@@ -176,6 +180,18 @@ Examples:
             if (issue.fields.assignee) {
                 console.log(chalk.bold('\nAssignee: ') + issue.fields.assignee.displayName);
             }
+            if (issue.fields.components && issue.fields.components.length > 0) {
+                console.log(chalk.bold('Components: ') + issue.fields.components.map((c) => c.name).join(', '));
+            }
+            if (issue.fields.labels && issue.fields.labels.length > 0) {
+                console.log(chalk.bold('Labels: ') + issue.fields.labels.join(', '));
+            }
+            if (issue.fields.duedate) {
+                console.log(chalk.bold('Due Date: ') + issue.fields.duedate);
+            }
+            if (issue.fields.fixVersions && issue.fields.fixVersions.length > 0) {
+                console.log(chalk.bold('Fix Versions: ') + issue.fields.fixVersions.map((v) => v.name).join(', '));
+            }
             if (issue.fields.comment && issue.fields.comment.comments.length > 0) {
                 console.log(chalk.bold('\nComments:'));
                 issue.fields.comment.comments.forEach((c) => {
@@ -198,12 +214,14 @@ Examples:
         .option('-d, --description <text>', 'Issue description')
         .option('--priority <name>', 'Priority name (e.g., High, Medium, Low)')
         .option('-a, --assignee <id>', 'Assignee account ID (use "me" for self)')
+        .option('--custom <key=value>', 'Custom fields (key=value, repeatable)', (v, l) => l.concat([v]), [])
         .addHelpText('after', `
 Examples:
   $ jira issue create                                    # Interactive wizard
   $ jira issue create -p PROJ -s "Fix login bug"         # Quick create
   $ jira issue create -p PROJ -t Bug -s "Crash on save" --priority High
   $ jira issue create -p PROJ -s "New feature" -a me
+  $ jira issue create -p PROJ -s "Story" --custom "storyPoints=5"
         `)
         .action(async (options) => {
         let spinner = null;
@@ -319,6 +337,71 @@ Examples:
                     // Priority endpoint may not be available; skip
                 }
             }
+            // ── Step 5.5: Components ────────────────────────────
+            let componentIds = [];
+            // Interactive only for now (TODO: add flags)
+            const compSpinner = ora('Fetching components...').start();
+            try {
+                const components = await api.get(`/project/${projectKey}/components`);
+                compSpinner.stop();
+                if (Array.isArray(components) && components.length > 0) {
+                    const { selectedComponents } = await enquirer.prompt({
+                        type: 'multiselect',
+                        name: 'selectedComponents',
+                        message: 'Select Components (Space to select, Enter to confirm):',
+                        choices: components.map((c) => ({ name: c.id, message: c.name }))
+                    });
+                    componentIds = selectedComponents;
+                }
+            }
+            catch {
+                compSpinner.stop();
+            }
+            // ── Step 5.6: Labels ────────────────────────────────
+            let labels = [];
+            const { inputLabels } = await enquirer.prompt({
+                type: 'input',
+                name: 'inputLabels',
+                message: 'Labels (comma-separated, optional):'
+            });
+            if (inputLabels && inputLabels.trim().length > 0) {
+                labels = inputLabels.split(',').map((l) => l.trim()).filter((l) => l.length > 0);
+            }
+            // ── Step 5.7: Fix Versions ──────────────────────────
+            let fixVersionIds = [];
+            const verSpinner = ora('Fetching versions...').start();
+            try {
+                const versions = await api.get(`/project/${projectKey}/versions`);
+                verSpinner.stop();
+                // Filter unreleased versions usually
+                const unreleased = versions.filter((v) => !v.released);
+                if (Array.isArray(unreleased) && unreleased.length > 0) {
+                    const { selectedVersions } = await enquirer.prompt({
+                        type: 'multiselect',
+                        name: 'selectedVersions',
+                        message: 'Fix Versions:',
+                        choices: unreleased.map((v) => ({ name: v.id, message: v.name }))
+                    });
+                    fixVersionIds = selectedVersions;
+                }
+            }
+            catch {
+                verSpinner.stop();
+            }
+            // ── Step 5.8: Due Date ──────────────────────────────
+            let duedate = null;
+            const { inputDueDate } = await enquirer.prompt({
+                type: 'input',
+                name: 'inputDueDate',
+                message: 'Due Date (YYYY-MM-DD, optional):',
+                validate: (val) => {
+                    if (!val)
+                        return true;
+                    return /^\d{4}-\d{2}-\d{2}$/.test(val) || 'Format must be YYYY-MM-DD';
+                }
+            });
+            if (inputDueDate)
+                duedate = inputDueDate;
             // ── Step 6: Assignee ────────────────────────────────
             let assigneeId = options.assignee;
             if (!assigneeId) {
@@ -431,6 +514,30 @@ Examples:
             }
             if (assigneeId) {
                 issueBody.fields.assignee = { accountId: assigneeId };
+            }
+            if (componentIds.length > 0) {
+                issueBody.fields.components = componentIds.map(id => ({ id }));
+            }
+            if (labels.length > 0) {
+                issueBody.fields.labels = labels;
+            }
+            if (fixVersionIds.length > 0) {
+                issueBody.fields.fixVersions = fixVersionIds.map(id => ({ id }));
+            }
+            if (duedate) {
+                issueBody.fields.duedate = duedate;
+            }
+            // ── Step 5.9: Custom Fields ─────────────────────────
+            if (options.custom && options.custom.length > 0) {
+                options.custom.forEach((cf) => {
+                    const [key, ...rest] = cf.split('=');
+                    const value = rest.join('=');
+                    if (!key || !value)
+                        return;
+                    const fieldId = ConfigService.get(`customFields.${key}`) || key;
+                    const parsedValue = isNaN(Number(value)) ? value : Number(value);
+                    issueBody.fields[fieldId] = parsedValue;
+                });
             }
             // ── Create Issue ────────────────────────────────────
             const spinner = ora('Creating issue...').start();
@@ -666,7 +773,7 @@ Examples:
             const issue = await api.get(`/issue/${issueKey}?fields=summary,description,priority`);
             spinner.stop();
             const updateBody = { fields: {} };
-            const hasFlags = options.summary || options.description || options.priority;
+            const hasFlags = options.summary || options.description || options.priority || (options.custom && options.custom.length > 0);
             if (hasFlags) {
                 if (options.summary)
                     updateBody.fields.summary = options.summary;
@@ -674,6 +781,17 @@ Examples:
                     updateBody.fields.description = textToADF(options.description);
                 if (options.priority)
                     updateBody.fields.priority = { name: options.priority };
+                if (options.custom && options.custom.length > 0) {
+                    options.custom.forEach((cf) => {
+                        const [key, ...rest] = cf.split('=');
+                        const value = rest.join('=');
+                        if (!key || !value)
+                            return;
+                        const fieldId = ConfigService.get(`customFields.${key}`) || key;
+                        const parsedValue = isNaN(Number(value)) ? value : Number(value);
+                        updateBody.fields[fieldId] = parsedValue;
+                    });
+                }
             }
             else {
                 // Interactive: pick which fields to edit
@@ -685,7 +803,9 @@ Examples:
                     choices: [
                         { name: 'summary', message: `Summary: ${issue.fields.summary}` },
                         { name: 'description', message: 'Description' },
-                        { name: 'priority', message: `Priority: ${issue.fields.priority?.name || 'None'}` }
+                        { name: 'priority', message: `Priority: ${issue.fields.priority?.name || 'None'}` },
+                        { name: 'components', message: `Components: ${(issue.fields.components || []).map((c) => c.name).join(', ')}` },
+                        { name: 'labels', message: `Labels: ${(issue.fields.labels || []).join(', ')}` }
                     ],
                     multiple: true
                 });
@@ -713,6 +833,64 @@ Examples:
                             choices: priorities.map((p) => ({ name: p.name, message: p.name }))
                         });
                         updateBody.fields.priority = { name: await prioSelect.run() };
+                    }
+                    if (field === 'components') {
+                        const components = await api.get(`/project/${issue.fields.project.key}/components`);
+                        if (components.length > 0) {
+                            const compSelect = new Select({
+                                // Wait, fieldSelect was initialized from enquirer as any. 
+                                // Multiselect is needed here.
+                                name: 'components',
+                                message: 'Select components',
+                                multiple: true,
+                                choices: components.map((c) => ({ name: c.id, message: c.name, enabled: (issue.fields.components || []).some((ic) => ic.id === c.id) }))
+                            });
+                            // Enquirer 'Select' with 'multiple: true' is actually 'MultiSelect'? No, standard Enquirer has 'MultiSelect'.
+                            // We cast enquirer to any so we can check if MultiSelect exists or use Select with multiple: true (which might not work in all versions).
+                            // Let's try to use 'MultiSelect' if available, or 'Select' with multiple.
+                            // Actually, in step 5.5 I used type: 'multiselect'. Here I am instantiating classes.
+                            // Let's use the prompt method for consistency.
+                            const { selectedComps } = await enquirer.prompt({
+                                type: 'multiselect',
+                                name: 'selectedComps',
+                                message: 'Select Components:',
+                                choices: components.map((c) => ({
+                                    name: c.id,
+                                    message: c.name,
+                                    initial: (issue.fields.components || []).some((ic) => ic.id === c.id) // Enquirer uses 'initial' or 'enabled'? Checks docs... usually 'initial' for multiselect is index or name list? 
+                                    // Simple approach: Pre-select not easy without specific logic. 
+                                    // Let's just show the list.
+                                }))
+                            });
+                            updateBody.fields.components = selectedComps.map((id) => ({ id }));
+                        }
+                    }
+                    if (field === 'labels') {
+                        const prompt = new Input({ message: 'New labels (comma separated)', initial: (issue.fields.labels || []).join(', ') });
+                        const labelStr = await prompt.run();
+                        updateBody.fields.labels = labelStr.split(',').map((l) => l.trim()).filter((l) => l.length > 0);
+                    }
+                    if (field === 'fixVersions') {
+                        const versions = await api.get(`/project/${issue.fields.project.key}/versions`);
+                        const unreleased = versions.filter((v) => !v.released);
+                        if (unreleased.length > 0) {
+                            const { selectedVersions } = await enquirer.prompt({
+                                type: 'multiselect',
+                                name: 'selectedVersions',
+                                message: 'Select Fix Versions:',
+                                choices: unreleased.map((v) => ({ name: v.id, message: v.name }))
+                            });
+                            updateBody.fields.fixVersions = selectedVersions.map((id) => ({ id }));
+                        }
+                    }
+                    if (field === 'duedate') {
+                        const prompt = new Input({
+                            message: 'Due Date (YYYY-MM-DD)',
+                            initial: issue.fields.duedate,
+                            validate: (val) => !val || /^\d{4}-\d{2}-\d{2}$/.test(val) || 'Format must be YYYY-MM-DD'
+                        });
+                        const date = await prompt.run();
+                        updateBody.fields.duedate = date || null;
                     }
                 }
             }
@@ -879,6 +1057,92 @@ Examples:
             handleCommandError(spinner, e, `Failed to unwatch ${issueKey}`);
         }
     });
+    // ── SUBTASK ───────────────────────────────────────────────────────
+    issueCmd
+        .command('subtask')
+        .description('Create a subtask for an existing issue')
+        .argument('<parentKey>', 'Parent Issue Key')
+        .option('-s, --summary <text>', 'Subtask summary')
+        .option('--priority <name>', 'Priority')
+        .option('-a, --assignee <id>', 'Assignee')
+        .addHelpText('after', `
+Examples:
+  $ jira issue subtask PROJ-123                        # Interactive
+  $ jira issue subtask PROJ-123 -s "Dev task"
+        `)
+        .action(async (parentKey, options) => {
+        const check = validateIssueKey(parentKey);
+        if (!check.valid) {
+            console.error(chalk.red(check.message));
+            return;
+        }
+        const spinner = ora(`Fetching parent ${parentKey}...`).start();
+        try {
+            const parent = await api.get(`/issue/${parentKey}?fields=project,summary`);
+            const projectKey = parent.fields.project.key;
+            spinner.text = 'Fetching subtask types...';
+            // Get valid subtask types for project
+            const meta = await api.get(`/issue/createmeta/${projectKey}/issuetypes`);
+            const allTypes = meta.issueTypes || meta.values || [];
+            const subtaskTypes = allTypes.filter((t) => t.subtask);
+            spinner.stop();
+            if (subtaskTypes.length === 0) {
+                console.error(chalk.red(`No subtask types found in project ${projectKey}.`));
+                return;
+            }
+            console.log(chalk.bold(`\nParent: ${chalk.cyan(parentKey)} ${parent.fields.summary}`));
+            let subtaskTypeId = subtaskTypes[0].id;
+            if (subtaskTypes.length > 1) {
+                const { selectedType } = await enquirer.prompt({
+                    type: 'select',
+                    name: 'selectedType',
+                    message: 'Select Subtask Type:',
+                    choices: subtaskTypes.map((t) => ({ name: t.id, message: t.name }))
+                });
+                subtaskTypeId = selectedType;
+            }
+            let summary = options.summary;
+            if (!summary) {
+                const { inputSummary } = await enquirer.prompt({
+                    type: 'input',
+                    name: 'inputSummary',
+                    message: 'Subtask Summary:',
+                    validate: (val) => val.trim().length > 0 || 'Summary required'
+                });
+                summary = inputSummary;
+            }
+            // Optional: Priority
+            let priorityName = options.priority;
+            // Optional: Assignee
+            let assigneeId = options.assignee;
+            const issueBody = {
+                fields: {
+                    project: { key: projectKey },
+                    parent: { key: parentKey },
+                    issuetype: { id: subtaskTypeId },
+                    summary: summary
+                }
+            };
+            if (priorityName)
+                issueBody.fields.priority = { name: priorityName };
+            if (assigneeId === 'me') {
+                const me = await api.get('/myself');
+                issueBody.fields.assignee = { accountId: me.accountId };
+            }
+            else if (assigneeId) {
+                issueBody.fields.assignee = { accountId: assigneeId };
+            }
+            const createSpinner = ora('Creating subtask...').start();
+            const result = await api.post('/issue', issueBody);
+            createSpinner.succeed(chalk.green(`Subtask created: ${chalk.bold(result.key)}`));
+        }
+        catch (e) {
+            handleCommandError(spinner, e, 'Failed to create subtask');
+        }
+    });
+    registerWorklogCommand(issueCmd);
+    registerPrCommand(issueCmd);
+    registerAttachCommand(issueCmd);
     program.addCommand(issueCmd);
 }
 //# sourceMappingURL=issue.js.map

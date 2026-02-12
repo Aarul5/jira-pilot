@@ -96,6 +96,14 @@ class ConfigStore {
     clear() {
         this.save({});
     }
+
+    get all() {
+        return this.load();
+    }
+
+    set all(data: any) {
+        this.save(data);
+    }
 }
 
 export default ConfigStore;

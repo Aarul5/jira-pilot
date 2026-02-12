@@ -127,4 +127,69 @@ describe('MCP Server Integration', () => {
             expect(content.success).toBe(true);
         });
     });
+    describe('jira_add_worklog', () => {
+        it('should add worklog', async () => {
+            api.post.mockResolvedValue({});
+
+            const result = await toolHandler({
+                params: {
+                    name: 'jira_add_worklog',
+                    arguments: {
+                        issueKey: 'TEST-100',
+                        timeSpent: '2h',
+                        comment: 'Working hard'
+                    }
+                }
+            });
+
+            expect(api.post).toHaveBeenCalledWith('/issue/TEST-100/worklog', {
+                timeSpent: '2h',
+                comment: expect.objectContaining({ type: 'doc' }) // textToADF output
+            });
+
+            const content = JSON.parse(result.content[0].text);
+            expect(content.success).toBe(true);
+        });
+    });
+
+    describe('jira_create_subtask', () => {
+        it('should create subtask with auto-detected type', async () => {
+            // Mock sequence:
+            // 1. Get parent project
+            api.get.mockResolvedValueOnce({ fields: { project: { key: 'PROJ' } } });
+            // 2. Get subtask types
+            api.get.mockResolvedValueOnce({
+                issueTypes: [{ id: '99', name: 'Sub-task', subtask: true }]
+            });
+            // 3. Create issue
+            api.post.mockResolvedValueOnce({ key: 'PROJ-101', self: 'http://...' });
+
+            const result = await toolHandler({
+                params: {
+                    name: 'jira_create_subtask',
+                    arguments: {
+                        parentKey: 'PROJ-100',
+                        summary: 'Subtask 1',
+                        priority: 'High'
+                    }
+                }
+            });
+
+            // Verify calls
+            expect(api.get).toHaveBeenCalledWith('/issue/PROJ-100?fields=project');
+            expect(api.get).toHaveBeenCalledWith('/issue/createmeta/PROJ/issuetypes');
+            expect(api.post).toHaveBeenCalledWith('/issue', {
+                fields: {
+                    project: { key: 'PROJ' },
+                    parent: { key: 'PROJ-100' },
+                    issuetype: { id: '99' },
+                    summary: 'Subtask 1',
+                    priority: { name: 'High' }
+                }
+            });
+
+            const content = JSON.parse(result.content[0].text);
+            expect(content.key).toBe('PROJ-101');
+        });
+    });
 });

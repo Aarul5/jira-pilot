@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import enquirer from 'enquirer';
 import { setCredentials, getCredentials, clearCredentials, saveProfile, loadProfile, deleteProfile, listProfiles, getActiveProfile } from '../utils/config.js';
+import ConfigStore from '../utils/config-store.js';
 import ora from 'ora';
 import { api } from '../services/api-service.js';
 
@@ -219,6 +220,54 @@ export function registerConfigCommand(program: Command) {
             deleteProfile(name);
             console.log(chalk.green(`Profile "${name}" deleted.`));
         });
+
+    // ── CUSTOM FIELD MANAGEMENT ─────────────────────────────────────
+    const fieldCmd = new Command('field')
+        .description('Manage custom field aliases');
+
+    fieldCmd
+        .command('set')
+        .description('Set a custom field alias')
+        .argument('<alias>', 'Field Alias (e.g. storyPoints)')
+        .argument('<fieldId>', 'Field ID (e.g. customfield_10011)')
+        .action((alias, fieldId) => {
+            const config = new ConfigStore('jira-pilot');
+            config.set(`customFields.${alias}`, fieldId);
+            console.log(chalk.green(`Alias "${chalk.bold(alias)}" mapped to ${chalk.bold(fieldId)}.`));
+        });
+
+    fieldCmd
+        .command('list')
+        .description('List custom field aliases')
+        .action(() => {
+            const config = new ConfigStore('jira-pilot');
+            const fields = config.get('customFields') || {};
+            if (Object.keys(fields).length === 0) {
+                console.log(chalk.yellow('No custom field aliases defined.'));
+                return;
+            }
+            console.log(chalk.bold('\nCustom Field Aliases:\n'));
+            for (const [alias, id] of Object.entries(fields)) {
+                console.log(`  ${chalk.cyan(alias)}: ${id}`);
+            }
+            console.log('');
+        });
+
+    fieldCmd
+        .command('delete')
+        .description('Delete a custom field alias')
+        .argument('<alias>', 'Field Alias')
+        .action((alias) => {
+            const config = new ConfigStore('jira-pilot');
+            if (!config.get(`customFields.${alias}`)) {
+                console.error(chalk.red(`Alias "${alias}" not found.`));
+                return;
+            }
+            config.delete(`customFields.${alias}`);
+            console.log(chalk.green(`Alias "${chalk.bold(alias)}" deleted.`));
+        });
+
+    configCmd.addCommand(fieldCmd);
 
     program.addCommand(configCmd);
 }

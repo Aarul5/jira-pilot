@@ -87,6 +87,12 @@ class ConfigStore {
     clear() {
         this.save({});
     }
+    get all() {
+        return this.load();
+    }
+    set all(data) {
+        this.save(data);
+    }
 }
 export default ConfigStore;
 //# sourceMappingURL=config-store.js.map

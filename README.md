@@ -10,7 +10,7 @@
 `jira-pilot` is a next-generation CLI that combines traditional developer tools with modern AI capabilities.
 
 - **For Humans:** A beautiful, interactive CLI to manage issues, sprints, boards, and code. Now with **AI Code Reviews**, **Epic Planning**, **Daily Standups**, and **Natural Language JQL**.
-- **For Agents:** A fully compliant **Model Context Protocol (MCP)** server with 8 tools that lets AI assistants (like Claude Desktop or Gemini) interact with your Jira instance safely.
+- **For Agents:** A fully compliant **Model Context Protocol (MCP)** server with **14 tools** that lets AI assistants (like Claude Desktop, Cursor, or Gemini) interact with your Jira instance safely.
 
 ---
 
@@ -20,27 +20,21 @@
 | Feature | Description |
 |---------|-------------|
 | **Issue Management** | Create, edit, view, list, transition, assign, and comment on issues |
-| **Power Tools** | Bulk transition, issue linking, watching, and quick search |
+| **Work & Time** | **New:** Log work (`2h 30m`), manage sprints (start/complete), and subtasks |
+| **Developer Tools** | **New:** Open PRs, save local filters, git branch integration |
+| **Power Tools** | **New:** Bulk assign, bulk label, bulk transition matching JQL |
+| **Advanced Data** | **New:** Upload attachments, manage custom fields by alias |
+| **AI Copilot** | Summarize, draft descriptions, suggest actions, review code, plan epics, standup reports |
 | **Interactive Wizards** | Step-by-step prompts with `enquirer` — no flags required |
-| **Board & Sprint Management** | List boards, view active sprint issues |
-| **Git Integration** | Create feature branches from issues with smart naming |
-| **AI Copilot** | **Pro:** Code review, epic breakdown (plan), standups.<br>**Standard:** Summarize, draft, suggest, NL JQL. |
 | **Rich Visualization** | Dashboard overview, spinners, and formatted output |
 | **Export** | Output to JSON or Markdown files, pipeable JSON output |
 
 ### 🤖 Agentic Features (MCP)
 | Feature | Description |
 |---------|-------------|
-| **8 MCP Tools** | list_issues, get_issue, create_issue, transition_issue, assign_issue, add_comment, list_projects, list_sprints |
+| **14 MCP Tools** | list_issues, get_issue, create_issue, update_issue, transition_issue, assign_issue, add_comment, add_worklog, create_subtask, add_attachment, search_users, myself, list_projects, list_sprints |
 | **LLM-Optimized** | Clean, structured JSON responses for efficient token usage |
 | **Stdio Transport** | Standard MCP stdio server — works with any MCP client |
-
-### 🧠 Multi-Provider AI
-| Provider | Model |
-|----------|-------|
-| **OpenAI** | GPT-4o |
-| **Google Gemini** | gemini-2.0-flash |
-| **Anthropic** | claude-sonnet (claude-sonnet-4-20250514) |
 
 ---
 
@@ -75,39 +69,79 @@ You will be prompted for:
 5. **AI Provider** — Choose between `openai`, `gemini`, or `anthropic`
 6. **AI API Key** — Your API key for the selected provider
 
-### View / Clear Configuration
-```bash
-jira config view     # Show current configuration (keys are masked)
-jira config clear    # Remove all stored credentials
-```
-
-### Config Profiles
+### Profiles & Management
 Manage credentials for multiple environments (e.g., Work vs. Personal, Prod vs. Dev).
 
 ```bash
-jira config save work       # Save current creds as profile 'work'
-jira config use personal    # Switch to profile 'personal'
-jira config profiles        # List all saved profiles
+jira config view              # Show current configuration (keys are masked)
+jira config save work         # Save current creds as profile 'work'
+jira config use personal      # Switch to profile 'personal'
+jira config profiles          # List all saved profiles
 jira config delete-profile work
+jira config clear             # Remove all stored credentials
 ```
 
-> **Note:** Credentials are stored securely using a custom `ConfigStore` in your system's config directory.
+### Custom Field Aliases
+Define aliases for custom field IDs to make commands easier:
+```bash
+jira config field set points customfield_10011
+jira config field list
+```
 
 ---
 
-## 📖 Usage
+## ✨ Interactive Experience
+
+Jira Pilot is designed to be fully interactive. You don't need to remember complex flags.
+
+**Just run the command, and we'll guide you:**
+
+1.  **Selection**: Use arrow keys `↑` `↓` to navigate lists (Projects, Issue Types, Priorities).
+2.  **Filtering**: Start typing to filter long lists (e.g., finding a specific assignee).
+3.  **Wizards**: Complex flows like creating an issue are broken down into simple steps.
+4.  **Confirmation**: Destructive actions prompt for confirmation (y/N).
+
+Example:
+```bash
+jira issue create
+? Select Project: PROJ - My Project
+? Select Issue Type: Bug
+? Summary: Login page crashes
+? Priority: High
+? Assignee: Me
+```
+
+---
+
+## 📊 My Dashboard
+
+Start your day with a high-level overview of what's on your plate.
+
+```bash
+jira dashboard
+```
+
+**What you'll see:**
+*   **👋 Welcome Message**: Personalized greeting.
+*   **🔥 High Priority**: Issues assigned to you that need immediate attention.
+*   **📋 Recent Activity**: Your recently viewed or updated issues.
+*   **🚀 Sprint Status**: (If applicable) Active sprint progress.
+
+---
+
+## 📖 Usage Guide
 
 ### 📋 Issue Management
 
 #### List Issues
 ```bash
-# List issues assigned to you in active sprints
+# List issues assigned to you in active sprints (interactive)
 jira issue list
 
 # List with custom JQL
 jira issue list --jql "project = PROJ AND priority = High"
 
-# Filter by project, assignee, or status
+# Filter by project, assignee, or status via flags
 jira issue list --project PROJ --assignee "john.doe" --status "In Progress"
 
 # Limit results
@@ -131,41 +165,36 @@ jira issue search "login bug"
 jira issue search "error 500" --project PROJ
 ```
 
-#### Dashboard Overview
-Get a high-level view of your work:
-```bash
-jira dashboard    # Shows your open issues (by priority) and recent activity
-```
-
 #### View Issue Details
 ```bash
 jira issue view PROJ-123
 ```
-Displays: summary, status, priority, assignee, description, and recent comments.
+Displays: summary, status, priority, assignee, description, components, labels, dates, versions, and recent comments.
 
 #### Create Issue
 ```bash
 # Interactive wizard (recommended)
 jira issue create
 
-# Non-interactive with flags
+# Non-interactive with flags for speed
 jira issue create -p PROJ -s "Fix login bug"
 jira issue create -p PROJ -t Bug -s "Crash on save" --priority High
 jira issue create -p PROJ -t Story -s "Add dark mode" -d "Users want a dark theme" -a me
-jira issue create -p PROJ -s "New feature" -a me
 
-# Edit Issue
-jira issue edit PROJ-123 -s "New Summary" --priority High
-jira issue edit PROJ-123    # Interactive field picker
+# With Custom Fields (using Alias or ID)
+jira issue create -p PROJ -s "Story" --custom "points=5" --custom "customfield_10022=DevOps"
 ```
 
-**Interactive Wizard Steps:**
-1. **Select Project** — Choose from your accessible projects
-2. **Select Issue Type** — Bug, Story, Task, Epic, etc.
-3. **Enter Summary** — Required issue title
-4. **Enter Description** — Optional, converted to Jira ADF format
-5. **Select Priority** — High, Medium, Low, etc.
-6. **Assign** — Myself, Unassigned, or search by name/email
+#### Edit Issue
+```bash
+# Interactive Field Picker
+jira issue edit PROJ-123
+
+# Quick Edits
+jira issue edit PROJ-123 -s "New Summary" --priority High
+jira issue edit PROJ-123 -d "New description"
+jira issue edit PROJ-123 --custom "points=8"
+```
 
 #### Transition Issue Status
 ```bash
@@ -177,7 +206,7 @@ jira issue transition PROJ-123 --status "In Progress"
 jira issue transition PROJ-123 -s Done
 ```
 
-#### Assign / Reassign Issue
+#### Assign / Reassign
 ```bash
 # Interactive — choose Myself, Unassign, or Search
 jira issue assign PROJ-123
@@ -196,18 +225,116 @@ jira issue comment PROJ-123
 jira issue comment PROJ-123 -m "Fixed in latest build"
 ```
 
-#### Link, Watch, & Bulk
+#### Other Actions
 ```bash
 # Link Issues
-jira issue link PROJ-123 PROJ-456         # Link two issues (interactive type)
 jira issue link PROJ-123 PROJ-456 -t Blocks
 
 # Watchers
-jira issue watch PROJ-123                 # Start watching
-jira issue unwatch PROJ-123               # Stop watching
+jira issue watch PROJ-123
+jira issue unwatch PROJ-123
 
-# Bulk Transition
-jira bulk transition -j "project = PROJ AND status = Validated" -s Closed
+# Attachments
+jira issue attach PROJ-123 ./logs/server.log
+```
+
+---
+
+### ⏱️ Work & Time
+
+#### Worklogs
+Track time naturally against issues.
+```bash
+# Add worklog
+jira issue worklog add PROJ-123 2h "Researching API"
+jira issue worklog add PROJ-123 30m "Daily standup"
+jira issue worklog add PROJ-123 1d "Implementation"
+
+# List worklogs
+jira issue worklog list PROJ-123
+```
+
+#### Subtasks
+```bash
+# Interactive subtask creation
+jira issue subtask PARENT-123
+
+# Quick subtask
+jira issue subtask PARENT-123 -s "Implement backend logic" --assignee me
+```
+
+#### Sprint Management
+Manage your Agile boards directly.
+```bash
+# List sprints
+jira sprint list --board "My Board"
+jira sprint list --board 5 --state active
+
+# List issues in active sprint
+jira sprint issues --board 5
+
+# Start/Complete Sprints
+jira sprint start 123 --start-date 2023-10-01 --end-date 2023-10-15
+jira sprint complete 123
+```
+
+---
+
+### 👨‍💻 Developer Workflow
+
+#### Pull Requests
+Open a GitHub PR with title and body pre-filled from the Jira issue.
+```bash
+jira issue pr PROJ-123
+# Requires 'gh' CLI to be installed and authenticated
+```
+
+#### Git Integration
+Create feature branches automatically named from the issue summary.
+```bash
+jira git branch PROJ-123
+# Creates: feature/PROJ-123-issue-summary-slug
+```
+
+#### Saved Filters
+Save complex JQL queries locally for quick access.
+```bash
+# Save a filter
+jira filter save "My Bugs" "assignee = currentUser() AND issuetype = Bug AND status != Done"
+
+# List saved filters
+jira filter list
+
+# Use a saved filter
+jira issue list --filter "My Bugs"
+
+# Delete a filter
+jira filter delete "My Bugs"
+```
+
+---
+
+### ⚡ Power Tools (Bulk Actions)
+
+Perform actions on multiple issues matching a JQL query. Great for cleanups or mass updates.
+
+#### Bulk Transition
+Move multiple issues to a new status.
+```bash
+jira bulk transition -j "project = PROJ AND status = 'To Do'" -s "In Progress"
+# Optional: -y to skip confirmation
+```
+
+#### Bulk Assign
+Assign a set of issues to a user.
+```bash
+jira bulk assign -j "priority = High AND assignee is EMPTY" --assignee me
+```
+
+#### Bulk Label
+Add or remove labels from a set of issues.
+```bash
+jira bulk label -j "fixVersion = 1.0" --add "release-candidate" --remove "wip"
 ```
 
 ---
@@ -217,8 +344,8 @@ jira bulk transition -j "project = PROJ AND status = Validated" -s Closed
 #### List Projects
 ```bash
 jira project list
+# Displays: project key, name, lead, and style in a formatted table.
 ```
-Displays: project key, name, lead, and style in a formatted table.
 
 #### List Boards
 ```bash
@@ -233,38 +360,11 @@ jira board list -t scrum
 jira board list -t kanban
 ```
 
-#### List Sprints
-```bash
-# List active and future sprints
-jira sprint list --board 5
-
-# List by board name
-jira sprint list --board "My Team Board"
-
-# List issues in active sprint
-jira sprint issues --board "My Team Board"
-jira sprint issues --board 123 --output json
-
-# Filter by state
-jira sprint list --board 5 --state active
-jira sprint list --board 5 --state closed
-```
-
----
-
-### 🌿 Git Integration
-
-Create feature branches automatically named from the issue summary:
-```bash
-jira git branch PROJ-123
-# Output: Switched to a new branch 'feature/PROJ-123-fix-login-modal'
-```
-
 ---
 
 ### 🤖 AI Features
 
-> **Requires:** AI features must be enabled via `jira config setup` with a valid API key for your chosen provider (OpenAI, Gemini, or Anthropic).
+> **Requires:** AI enabled in `config setup`.
 
 #### Summarize an Issue
 Get an AI-generated TL;DR of long issue threads with comments:
@@ -321,29 +421,34 @@ Outputs: **Yesterday**, **Today**, **Blockers**.
 jira mcp
 ```
 
-### Available MCP Tools
+### Available MCP Tools (14)
+Everything you need to build a fully autonomous Jira agent:
 
-| Tool | Description | Required Args |
-|------|-------------|---------------|
-| `jira_list_issues` | Search issues via JQL | `jql` |
-| `jira_get_issue` | Get full issue details | `issueKey` |
-| `jira_create_issue` | Create a new issue (ADF) | `projectKey`, `summary` |
-| `jira_transition_issue` | List or execute transitions | `issueKey` |
-| `jira_assign_issue` | Assign/unassign an issue | `issueKey` |
-| `jira_add_comment` | Add a comment (ADF) | `issueKey`, `body` |
-| `jira_list_projects` | List accessible projects | — |
-| `jira_list_sprints` | List sprints for a board | `boardId` |
+1.  `jira_list_issues`: Search via JQL (supports limit)
+2.  `jira_get_issue`: Get full details
+3.  `jira_create_issue`: Create new issue (ADF support)
+4.  `jira_update_issue`: Update summary, desc, priority, assignee
+5.  `jira_transition_issue`: Change status
+6.  `jira_assign_issue`: Change assignee
+7.  `jira_add_comment`: Add comment
+8.  `jira_add_worklog`: Log time
+9.  `jira_create_subtask`: Create subtask
+10. `jira_add_attachment`: Upload file (absolute path)
+11. `jira_search_users`: Search for users
+12. `jira_myself`: Get current user details
+13. `jira_list_projects`: List accessible projects
+14. `jira_list_sprints`: List sprints for a board
 
-### Claude Desktop Configuration
+### Agent Configuration (Claude Desktop)
 
-Add the following to your `claude_desktop_config.json`:
+Add to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "jira": {
-      "command": "node",
-      "args": ["/absolute/path/to/jira-pilot/bin/jira.js", "mcp"]
+      "command": "npx",
+      "args": ["-y", "jira-pilot", "mcp"]
     }
   }
 }
@@ -364,33 +469,11 @@ Add to your `.vscode/mcp.json` or equivalent:
 }
 ```
 
-### Example Agent Prompts
-Once connected, you can ask your AI assistant things like:
-- *"Show me my high-priority Jira issues"*
-- *"Create a bug for the login crash on mobile in project PROJ"*
-- *"Transition PROJ-123 to In Progress and assign it to me"*
-- *"Add a comment to PROJ-456 saying the fix is deployed"*
-- *"What sprints are active on board 5?"*
-
----
-
-## 🧪 Testing & Verification
-
-### Testing the MCP Server
-You can test the MCP server functionality using the official [MCP Inspector](https://github.com/modelcontextprotocol/inspector):
-
-```bash
-npx @modelcontextprotocol/inspector node ./bin/jira.js mcp
-```
-
-This will launch a web interface where you can:
-1. View all 8 available tools and their schemas
-2. Execute tools with custom arguments
-3. Inspect request/response logs
-
 ---
 
 ## 📦 CLI Command Reference
+
+Run `jira help` or `jira [command] help` to see all options.
 
 ```
 jira [command]
@@ -406,45 +489,6 @@ Commands:
   git              Git integration for Jira
   ai               AI Helper commands
   mcp              Start MCP Agent Server (Stdio)
-
-Config Subcommands:
-  config setup     Interactive setup
-  config view      View current configuration
-  config clear     Clear configuration
-  config save      Save current config as a profile
-  config use       Switch to a saved profile
-  config profiles  List saved profiles
-
-Issue Subcommands:
-  issue list       List issues (JQL, filters, export)
-  issue view       View issue details
-  issue create     Create a new issue (wizard or flags)
-  issue edit       Edit issue fields (interactive or flags)
-  issue transition Transition issue status
-  issue assign     Assign or reassign an issue
-  issue comment    Add a comment to an issue
-  issue search     Quick text search
-  issue link       Link two issues
-  issue watch      Start watching an issue
-  issue unwatch    Stop watching an issue
-
-AI Subcommands:
-  ai summarize     Summarize an issue using AI
-  ai draft         Draft issue description from notes
-  ai suggest       Suggest next actions for an issue
-  ai review        AI code review of linked PR
-  ai plan          Break down Epic into stories
-  ai standup       Generate daily standup report
-
-Board Subcommands:
-  board list       List Jira boards
-
-Sprint Subcommands:
-  sprint list      List sprints for a board
-  sprint issues    List issues in active sprint
-
-Bulk Subcommands:
-  bulk transition  Bulk transition issues matching JQL
 ```
 
 ---

@@ -11,6 +11,8 @@ export class ApiService {
         this.init();
     }
 
+
+
     init() {
         const { jiraUrl, email, apiToken } = getCredentials();
 
@@ -98,6 +100,24 @@ export class ApiService {
     async delete(url: string, config: any = {}) {
         this.ensureClient();
         const response = await this.client.delete(url, config);
+        return response.data;
+    }
+
+    async upload(url: string, formData: any) {
+        this.ensureClient();
+        // Jira requires this header for attachments
+        const headers: any = {
+            'X-Atlassian-Token': 'no-check'
+        };
+
+        // If using 'form-data' package, it has getHeaders().
+        // If using native FormData, axios/adapter handles Content-Type + boundary.
+        if (formData.getHeaders) {
+            Object.assign(headers, formData.getHeaders());
+        }
+
+        const config = { headers };
+        const response = await this.client.post(url, formData, config);
         return response.data;
     }
 

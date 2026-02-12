@@ -155,6 +155,46 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                     required: ["boardId"]
                 }
+            },
+            {
+                name: "jira_add_worklog",
+                description: "Log work to a Jira issue.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        issueKey: { type: "string", description: "Issue Key" },
+                        timeSpent: { type: "string", description: "Time spent (e.g., '2h 30m', '1d')" },
+                        comment: { type: "string", description: "Worklog comment" }
+                    },
+                    required: ["issueKey", "timeSpent"]
+                }
+            },
+            {
+                name: "jira_create_subtask",
+                description: "Create a subtask for a parent issue.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        parentKey: { type: "string", description: "Parent Issue Key" },
+                        summary: { type: "string", description: "Subtask summary" },
+                        description: { type: "string", description: "Subtask description" },
+                        priority: { type: "string", description: "Priority name" },
+                        assigneeId: { type: "string", description: "Assignee Account ID" }
+                    },
+                    required: ["parentKey", "summary"]
+                }
+            },
+            {
+                name: "jira_add_attachment",
+                description: "Attach a file to a Jira issue.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        issueKey: { type: "string", description: "Issue Key" },
+                        filePath: { type: "string", description: "Absolute path to the file to extract/upload" }
+                    },
+                    required: ["issueKey", "filePath"]
+                }
             }
         ]
     };
@@ -413,6 +453,92 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             return {
                 content: [{ type: "text", text: JSON.stringify(sprints, null, 2) }]
             };
+        }
+
+        // ── jira_add_worklog ────────────────────────────────
+        if (name === "jira_add_worklog") {
+            const body: any = {
+                timeSpent: args.timeSpent
+            };
+            if (args.comment) {
+                body.comment = textToADF(args.comment);
+            }
+
+            await api.post(`/issue/${args.issueKey}/worklog`, body);
+
+            return {
+                content: [{ type: "text", text: JSON.stringify({ success: true, issueKey: args.issueKey, timeSpent: args.timeSpent }) }]
+            };
+        }
+
+        // ── jira_create_subtask ─────────────────────────────
+        if (name === "jira_create_subtask") {
+            // 1. Fetch parent to get project
+            const parent = await api.get(`/issue/${args.parentKey}?fields=project`);
+            const projectKey = parent.fields.project.key;
+
+            // 2. Find subtask issue type
+            const meta = await api.get(`/issue/createmeta/${projectKey}/issuetypes`);
+            const allTypes = meta.issueTypes || meta.values || [];
+            const subtaskTypes = allTypes.filter((t: any) => t.subtask);
+
+            if (subtaskTypes.length === 0) {
+                return {
+                    content: [{ type: "text", text: `Error: No subtask types found in project ${projectKey}` }],
+                    isError: true
+                };
+            }
+            const subtaskId = subtaskTypes[0].id; // Default to first available
+
+            const body: any = {
+                fields: {
+                    project: { key: projectKey },
+                    parent: { key: args.parentKey },
+                    issuetype: { id: subtaskId },
+                    summary: args.summary
+                }
+            };
+
+            if (args.description) body.fields.description = textToADF(args.description);
+            if (args.priority) body.fields.priority = { name: args.priority };
+            if (args.assigneeId) {
+                let accId = args.assigneeId;
+                if (accId === 'me') {
+                    const myself = await api.get('/myself');
+                    accId = myself.accountId;
+                }
+                body.fields.assignee = { accountId: accId };
+            }
+
+            const data = await api.post('/issue', body);
+            return {
+                content: [{ type: "text", text: JSON.stringify({ key: data.key, self: data.self }, null, 2) }]
+            };
+        }
+
+        // ── jira_add_attachment ─────────────────────────────
+        if (name === "jira_add_attachment") {
+            try {
+                // Dynamically import fs/path to avoid top-level node dependencies if this runs in browser-like env (unlikely but safe)
+                const { openAsBlob } = await import('node:fs');
+                const path = await import('node:path');
+
+                const filePath = args.filePath;
+                const file = await openAsBlob(filePath);
+                const formData = new FormData();
+                formData.append('file', file, path.default.basename(filePath));
+
+                const result = await api.upload(`/issue/${args.issueKey}/attachments`, formData);
+
+                return {
+                    content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+                };
+            } catch (e: any) {
+                return {
+                    content: [{ type: "text", text: `Error attaching file: ${e.message}` }],
+                    isError: true
+                };
+            }
         }
 
         throw new Error(`Unknown tool: ${name}`);

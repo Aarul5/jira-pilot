@@ -9,5 +9,7 @@ declare class ConfigStore {
     set(key: string, value: any): void;
     delete(key: string): void;
     clear(): void;
+    get all(): any;
+    set all(data: any);
 }
 export default ConfigStore;

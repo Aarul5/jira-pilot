@@ -40,6 +40,7 @@ import { registerAiCommand } from '../src/commands/ai.js';
 import { registerMcpCommand } from '../src/commands/mcp.js';
 import { registerBulkCommand } from '../src/commands/bulk.js';
 import { registerDashboardCommand } from '../src/commands/dashboard.js';
+import { registerFilterCommand } from '../src/commands/filter.js';
 // Register Commands
 registerConfigCommand(program);
 registerIssueCommand(program);
@@ -51,6 +52,7 @@ registerAiCommand(program);
 registerMcpCommand(program);
 registerBulkCommand(program);
 registerDashboardCommand(program);
+registerFilterCommand(program);
 program.on('command:*', () => {
     console.error(chalk.red('Invalid command: %s\nSee --help for a list of available commands.'), program.args.join(' '));
     process.exit(1);
