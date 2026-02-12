@@ -28,10 +28,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build
+        run: npm run build
+
       - name: Syntax check
         run: |
           shopt -s globstar
-          for f in src/**/*.js bin/*.js; do
+          # Check built files in dist/
+          for f in dist/src/**/*.js dist/bin/*.js; do
             node -c "$f"
           done
 
