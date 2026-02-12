@@ -1,5 +1,10 @@
 # Jira Pilot ✈️
 
+[![CI](https://github.com/Aarul5/jira-pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/Aarul5/jira-pilot/actions/workflows/ci.yml)
+[![NPM Version](https://img.shields.io/npm/v/jira-pilot.svg)](https://www.npmjs.com/package/jira-pilot)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+[![Snyk Security](https://snyk.io/test/github/Aarul5/jira-pilot/badge.svg)](https://snyk.io/test/github/Aarul5/jira-pilot)
+
 **The AI-Powered Jira CLI and MCP Server for Humans and Agents.**
 
 `jira-pilot` is a next-generation CLI that combines traditional developer tools with modern AI capabilities.
