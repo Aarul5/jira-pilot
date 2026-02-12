@@ -43,7 +43,7 @@ jobs:
         run: npm test
 
       - name: CLI smoke test
-        run: node bin/jira.js --help
+        run: node dist/bin/jira.js --help
         
   publish:
     name: Publish to npm
