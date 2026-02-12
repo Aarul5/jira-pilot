@@ -9,6 +9,8 @@
         "jira-pilot": "./dist/bin/jira.js"
     },
     "scripts": {
+        "clean": "rimraf dist",
+        "prebuild": "npm run clean",
         "build": "tsc",
         "start": "node dist/bin/jira.js",
         "start:dev": "tsx bin/jira.ts",
