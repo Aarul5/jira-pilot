@@ -56,6 +56,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 }
             },
             {
+                name: "jira_update_issue",
+                description: "Update an existing Jira issue. Supports updating summary, description, priority, and assignee.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        issueKey: { type: "string", description: "Issue Key (e.g., PROJ-123)" },
+                        summary: { type: "string", description: "New summary" },
+                        description: { type: "string", description: "New description (plain text)" },
+                        priority: { type: "string", description: "New priority name" },
+                        assigneeId: { type: "string", description: "New assignee account ID (or 'me', 'none')" }
+                    },
+                    required: ["issueKey"]
+                }
+            },
+            {
                 name: "jira_transition_issue",
                 description: "Transition a Jira issue to a new status. First call with only issueKey to see available transitions, then call again with the transitionId.",
                 inputSchema: {
@@ -89,6 +104,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                         body: { type: "string", description: "Comment text (plain text, will be converted to ADF)" }
                     },
                     required: ["issueKey", "body"]
+                }
+            },
+            // ── Users ───────────────────────────────────────
+            {
+                name: "jira_search_users",
+                description: "Search for Jira users by name or email. Returns accountId and displayName.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        query: { type: "string", description: "Name, email, or part of it" }
+                    },
+                    required: ["query"]
+                }
+            },
+            {
+                name: "jira_myself",
+                description: "Get details about the current authenticated user.",
+                inputSchema: {
+                    type: "object",
+                    properties: {}
                 }
             },
             // ── Projects & Sprints ──────────────────────────
@@ -245,6 +280,64 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             });
             return {
                 content: [{ type: "text", text: JSON.stringify({ success: true, issueKey: args.issueKey, commentId: data.id }) }]
+            };
+        }
+        // ── jira_update_issue ───────────────────────────────
+        if (name === "jira_update_issue") {
+            const updateBody = { fields: {} };
+            if (args.summary)
+                updateBody.fields.summary = args.summary;
+            if (args.description)
+                updateBody.fields.description = textToADF(args.description);
+            if (args.priority)
+                updateBody.fields.priority = { name: args.priority };
+            if (args.assigneeId) {
+                let accId = args.assigneeId;
+                if (accId === 'me') {
+                    const myself = await api.get('/myself');
+                    accId = myself.accountId;
+                }
+                else if (accId === 'none') {
+                    accId = null;
+                }
+                updateBody.fields.assignee = { accountId: accId };
+            }
+            if (Object.keys(updateBody.fields).length === 0) {
+                return {
+                    content: [{ type: "text", text: "No fields to update provided." }],
+                    isError: true
+                };
+            }
+            await api.put(`/issue/${args.issueKey}`, updateBody);
+            return {
+                content: [{ type: "text", text: JSON.stringify({ success: true, issueKey: args.issueKey }) }]
+            };
+        }
+        // ── jira_search_users ───────────────────────────────
+        if (name === "jira_search_users") {
+            const users = await api.get(`/user/search?query=${encodeURIComponent(args.query)}`);
+            const results = (users || []).map((u) => ({
+                accountId: u.accountId,
+                displayName: u.displayName,
+                email: u.emailAddress,
+                active: u.active
+            }));
+            return {
+                content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
+            };
+        }
+        // ── jira_myself ─────────────────────────────────────
+        if (name === "jira_myself") {
+            const myself = await api.get('/myself');
+            const result = {
+                accountId: myself.accountId,
+                displayName: myself.displayName,
+                email: myself.emailAddress,
+                active: myself.active,
+                timeZone: myself.timeZone
+            };
+            return {
+                content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
         }
         // ── jira_list_projects ──────────────────────────────

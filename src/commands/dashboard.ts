@@ -2,38 +2,50 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import ora from 'ora';
+import enquirer from 'enquirer';
 import { api } from '../services/api-service.js';
 import { handleCommandError } from '../utils/error-handler.js';
+
+// Utility for status icons
+const getStatusIcon = (status: string) => {
+    const s = status.toLowerCase();
+    if (s.includes('done') || s.includes('closed')) return '✅';
+    if (s.includes('progress')) return '🏃';
+    if (s.includes('review')) return '👀';
+    return '📝';
+};
+
+// Utility for priority icons/colors
+const getPriorityColor = (priority: string, text: string) => {
+    const p = priority.toLowerCase();
+    if (p.includes('highest')) return chalk.red.bold(text);
+    if (p.includes('high')) return chalk.red(text);
+    if (p.includes('medium')) return chalk.yellow(text);
+    if (p.includes('low')) return chalk.blue(text);
+    return chalk.grey(text);
+};
 
 export function registerDashboardCommand(program: Command) {
     program
         .command('dashboard')
-        .description('Show a quick overview of your Jira activity')
+        .description('Interactive Jira Dashboard')
         .option('-o, --output <format>', 'Output format (json)')
-        .addHelpText('after', `
-Examples:
-  $ jira dashboard
-  $ jira dashboard --output json
-        `)
         .action(async (options: any) => {
-            const spinner = ora('Loading dashboard...').start();
-            try {
-                // Fetch in parallel: my open issues + recently updated
-                const [myIssues, recentIssues] = await Promise.all([
-                    api.post('/search/jql', {
-                        jql: 'assignee = currentUser() AND statusCategory != Done ORDER BY priority ASC, updated DESC',
-                        maxResults: 8,
-                        fields: ['summary', 'status', 'priority', 'updated']
-                    }),
-                    api.post('/search/jql', {
-                        jql: 'assignee = currentUser() ORDER BY updated DESC',
-                        maxResults: 5,
-                        fields: ['summary', 'status', 'updated']
-                    })
-                ]);
-                spinner.stop();
+            if (options.output === 'json') {
+                try {
+                    const [myIssues, recentIssues] = await Promise.all([
+                        api.post('/search/jql', {
+                            jql: 'assignee = currentUser() AND statusCategory != Done ORDER BY priority ASC, updated DESC',
+                            maxResults: 15,
+                            fields: ['summary', 'status', 'priority', 'updated']
+                        }),
+                        api.post('/search/jql', {
+                            jql: 'assignee = currentUser() ORDER BY updated DESC',
+                            maxResults: 5,
+                            fields: ['summary', 'status', 'updated']
+                        })
+                    ]);
 
-                if (options.output === 'json') {
                     console.log(JSON.stringify({
                         openIssues: (myIssues.issues || []).map((i: any) => ({
                             key: i.key, summary: i.fields.summary,
@@ -44,47 +56,167 @@ Examples:
                             status: i.fields.status?.name, updated: i.fields.updated
                         }))
                     }, null, 2));
-                    return;
+                } catch (e: any) {
+                    console.error(JSON.stringify({ error: e.message }));
                 }
+                return;
+            }
 
-                // ── Open Issues ──────────────────────────────────────
-                console.log(chalk.bold('\n📋 Your Open Issues') + chalk.grey(` (${myIssues.total || 0} total)`));
+            // ── Interactive Dashboard ────────────────────────────
+            while (true) {
+                console.clear();
+                const spinner = ora('Loading dashboard...').start();
+                try {
+                    const myself = await api.get('/myself');
 
-                if (myIssues.issues && myIssues.issues.length > 0) {
-                    const openTable = new Table({
-                        head: [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Priority')]
-                    });
+                    // Fetch in parallel: my open issues + recently updated
+                    const [myIssues, recentIssues] = await Promise.all([
+                        api.post('/search/jql', {
+                            jql: 'assignee = currentUser() AND statusCategory != Done ORDER BY priority ASC, updated DESC', // Fixed Sort
+                            maxResults: 15,
+                            fields: ['summary', 'status', 'priority', 'updated', 'issuetype']
+                        }),
+                        api.post('/search/jql', {
+                            jql: 'assignee = currentUser() ORDER BY updated DESC',
+                            maxResults: 5,
+                            fields: ['summary', 'status', 'updated']
+                        })
+                    ]);
+                    spinner.stop();
 
-                    myIssues.issues.forEach((i: any) => {
-                        const prio = i.fields.priority?.name || '';
-                        const prioColor = prio === 'Highest' || prio === 'High' ? chalk.red(prio) : prio === 'Low' || prio === 'Lowest' ? chalk.blue(prio) : prio;
-                        openTable.push([
-                            chalk.cyan(i.key),
-                            i.fields.summary ? (i.fields.summary.length > 50 ? i.fields.summary.substring(0, 47) + '...' : i.fields.summary) : '',
-                            i.fields.status?.name || '',
-                            prioColor
-                        ]);
-                    });
-                    console.log(openTable.toString());
-                } else {
-                    console.log(chalk.green('  🎉 No open issues — nice work!\n'));
+                    // ── Header ───────────────────────────────────────────
+                    console.log(chalk.bold.blue('\n✈️  Jira Pilot Dashboard'));
+                    console.log(chalk.grey(`   User: ${myself.displayName} <${myself.emailAddress}>`));
+                    console.log('');
+
+                    // ── Open Issues Table ────────────────────────────────
+                    console.log(chalk.bold('📋 Your Open Issues') + chalk.grey(` (${myIssues.total || 0} total)`));
+
+                    const issues = myIssues.issues || [];
+
+                    if (issues.length > 0) {
+                        const table = new Table({
+                            head: [chalk.bold('Key'), chalk.bold('Type'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Priority')]
+                        });
+
+                        issues.forEach((i: any) => {
+                            table.push([
+                                chalk.cyan(i.key),
+                                i.fields.issuetype?.name || '',
+                                i.fields.summary ? (i.fields.summary.length > 40 ? i.fields.summary.substring(0, 37) + '...' : i.fields.summary) : '',
+                                i.fields.status?.name || '',
+                                getPriorityColor(i.fields.priority?.name || '', i.fields.priority?.name || '')
+                            ]);
+                        });
+                        console.log(table.toString());
+                    } else {
+                        console.log(chalk.green('  🎉 No open issues — nice work!'));
+                    }
+                    console.log('');
+
+                    // ── Interactive Menu ─────────────────────────────────
+                    // Enhancing the selection UI as requested
+                    const choices = [
+                        ...issues.map((i: any) => {
+                            const statusIcon = getStatusIcon(i.fields.status?.name || '');
+                            const priorityColor = getPriorityColor(i.fields.priority?.name || '', '●');
+                            const key = chalk.cyan.bold(i.key.padEnd(10));
+                            const summary = i.fields.summary.substring(0, 45);
+
+                            return {
+                                name: i.key,
+                                message: `${priorityColor} ${key} ${statusIcon}  ${summary}`,
+                                value: i.key
+                            };
+                        }),
+                        { role: 'separator' },
+                        { name: 'refresh', message: '🔄 Refresh Dashboard' },
+                        { name: 'exit', message: '🚪 Exit' }
+                    ];
+
+                    const { action } = await enquirer.prompt({
+                        type: 'select',
+                        name: 'action',
+                        message: 'Select an issue to manage:',
+                        choices: choices as any
+                    }) as any;
+
+                    if (action === 'exit') {
+                        console.log('Bye! 👋');
+                        process.exit(0);
+                    }
+
+                    if (action === 'refresh') {
+                        continue;
+                    }
+
+                    // Issue Selected: Show Action Menu
+                    const selectedKey = action;
+                    const { issueAction } = await enquirer.prompt({
+                        type: 'select',
+                        name: 'issueAction',
+                        message: `Action for ${chalk.cyan(selectedKey)}:`,
+                        choices: [
+                            { name: 'view', message: '📄 View Details' },
+                            { name: 'comment', message: '💬 Add Comment' },
+                            { name: 'transition', message: '🚀 Transition Status' },
+                            { name: 'assign', message: '👤 Assign' },
+                            { name: 'back', message: '⬅️  Back to Dashboard' }
+                        ]
+                    }) as any;
+
+                    if (issueAction === 'back') continue;
+
+                    if (issueAction === 'view') {
+                        const issue = await api.get(`/issue/${selectedKey}`);
+                        console.log(chalk.bold(`\n${issue.key}: ${issue.fields.summary}`));
+                        console.log(chalk.grey('────────────────────────────────────────'));
+                        console.log(`${getStatusIcon(issue.fields.status.name)} ${issue.fields.status.name}  |  ${getPriorityColor(issue.fields.priority?.name || '', issue.fields.priority?.name || '')}`);
+                        console.log(`\n${issue.fields.description || chalk.italic('No description')}\n`);
+                        await pause();
+                    }
+
+                    if (issueAction === 'comment') {
+                        const { inputComment } = await enquirer.prompt({
+                            type: 'input',
+                            name: 'inputComment',
+                            message: 'Comment:',
+                        }) as any;
+                        if (inputComment) {
+                            const { textToADF } = await import('../utils/text-to-adf.js');
+                            await api.post(`/issue/${selectedKey}/comment`, { body: textToADF(inputComment) });
+                            console.log(chalk.green('Comment added.'));
+                            await pause();
+                        }
+                    }
+
+                    if (issueAction === 'transition') {
+                        const transData = await api.get(`/issue/${selectedKey}/transitions`);
+                        const { transId } = await enquirer.prompt({
+                            type: 'select',
+                            name: 'transId',
+                            message: 'Select Status:',
+                            choices: transData.transitions.map((t: any) => ({ name: t.id, message: t.to.name }))
+                        }) as any;
+                        await api.post(`/issue/${selectedKey}/transitions`, { transition: { id: transId } });
+                        console.log(chalk.green('Transitioned.'));
+                        await pause();
+                    }
+
+                    if (issueAction === 'assign') {
+                        await api.put(`/issue/${selectedKey}/assignee`, { accountId: myself.accountId });
+                        console.log(chalk.green('Assigned to you.'));
+                        await pause();
+                    }
+
+                } catch (e: any) {
+                    handleCommandError(spinner, e, 'Dashboard Error');
+                    break;
                 }
-
-                // ── Recent Activity ──────────────────────────────────
-                console.log(chalk.bold('🕐 Recent Activity'));
-
-                if (recentIssues.issues && recentIssues.issues.length > 0) {
-                    recentIssues.issues.forEach((i: any) => {
-                        const updated = i.fields.updated ? new Date(i.fields.updated).toLocaleDateString() : '';
-                        console.log(`  ${chalk.cyan(i.key)} ${i.fields.summary || ''} ${chalk.grey(`[${i.fields.status?.name}] ${updated}`)}`);
-                    });
-                } else {
-                    console.log(chalk.grey('  No recent activity.'));
-                }
-                console.log('');
-
-            } catch (e: any) {
-                handleCommandError(spinner, e, 'Failed to load dashboard');
             }
         });
+}
+
+async function pause() {
+    await enquirer.prompt({ type: 'input', name: 'cont', message: 'Press Enter to continue...' });
 }
