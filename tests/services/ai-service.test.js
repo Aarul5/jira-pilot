@@ -10,7 +10,7 @@ vi.mock('axios', () => ({
 // Mock config
 vi.mock('../../src/utils/config.js', () => ({
     getCredentials: vi.fn(() => ({
-        aiEnabled: true,
+        enableAi: true,
         aiProvider: 'openai',
         aiKey: 'test-key'
     }))
@@ -37,7 +37,7 @@ describe('AiService', () => {
 
     it('should throw when AI is disabled', async () => {
         const { getCredentials } = await import('../../src/utils/config.js');
-        getCredentials.mockReturnValueOnce({ aiEnabled: false, aiKey: 'key', aiProvider: 'openai' });
+        getCredentials.mockReturnValueOnce({ enableAi: false, aiKey: 'key', aiProvider: 'openai' });
 
         const service = new AiService();
         await expect(service.generate('test')).rejects.toThrow('disabled');
@@ -45,7 +45,7 @@ describe('AiService', () => {
 
     it('should throw when API key is missing', async () => {
         const { getCredentials } = await import('../../src/utils/config.js');
-        getCredentials.mockReturnValueOnce({ aiEnabled: true, aiKey: null, aiProvider: 'openai' });
+        getCredentials.mockReturnValueOnce({ enableAi: true, aiKey: null, aiProvider: 'openai' });
 
         const service = new AiService();
         await expect(service.generate('test')).rejects.toThrow('not configured');
@@ -53,7 +53,7 @@ describe('AiService', () => {
 
     it('should throw for unsupported provider', async () => {
         const { getCredentials } = await import('../../src/utils/config.js');
-        getCredentials.mockReturnValueOnce({ aiEnabled: true, aiKey: 'key', aiProvider: 'invalid' });
+        getCredentials.mockReturnValueOnce({ enableAi: true, aiKey: 'key', aiProvider: 'invalid' });
 
         const service = new AiService();
         await expect(service.generate('test')).rejects.toThrow('Unsupported');
@@ -66,7 +66,7 @@ describe('AiService', () => {
         });
 
         const { getCredentials } = await import('../../src/utils/config.js');
-        getCredentials.mockReturnValueOnce({ aiEnabled: true, aiKey: 'test-key', aiProvider: 'openai' });
+        getCredentials.mockReturnValueOnce({ enableAi: true, aiKey: 'test-key', aiProvider: 'openai' });
 
         const service = new AiService();
         const result = await service.generate('Hello');
@@ -86,7 +86,7 @@ describe('AiService', () => {
         });
 
         const { getCredentials } = await import('../../src/utils/config.js');
-        getCredentials.mockReturnValueOnce({ aiEnabled: true, aiKey: 'test-key', aiProvider: 'gemini' });
+        getCredentials.mockReturnValueOnce({ enableAi: true, aiKey: 'test-key', aiProvider: 'gemini' });
 
         const service = new AiService();
         const result = await service.generate('Hello');
@@ -106,7 +106,7 @@ describe('AiService', () => {
         });
 
         const { getCredentials } = await import('../../src/utils/config.js');
-        getCredentials.mockReturnValueOnce({ aiEnabled: true, aiKey: 'test-key', aiProvider: 'anthropic' });
+        getCredentials.mockReturnValueOnce({ enableAi: true, aiKey: 'test-key', aiProvider: 'anthropic' });
 
         const service = new AiService();
         const result = await service.generate('Hello');

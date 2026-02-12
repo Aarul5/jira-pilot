@@ -2,19 +2,25 @@
     "name": "jira-pilot",
     "version": "2.1.2",
     "description": "AI powered Jira CLI and MCP server for humans and agents — manage issues, sprints, boards with interactive wizards, multi-provider AI (OpenAI/Gemini/Anthropic), and an 8-tool MCP server for AI assistants",
-    "main": "src/index.js",
+    "main": "dist/src/index.js",
     "type": "module",
     "bin": {
-        "jira": "./bin/jira.js",
-        "jira-pilot": "./bin/jira.js"
+        "jira": "./dist/bin/jira.js",
+        "jira-pilot": "./dist/bin/jira.js"
     },
     "scripts": {
-        "start": "node bin/jira.js",
-        "mcp": "node bin/jira.js mcp",
+        "clean": "rimraf dist",
+        "prebuild": "npm run clean",
+        "build": "tsc",
+        "start": "node dist/bin/jira.js",
+        "start:dev": "tsx bin/jira.ts",
+        "mcp": "node dist/bin/jira.js mcp",
+        "mcp:dev": "tsx bin/jira.ts mcp",
         "test": "vitest run",
         "test:watch": "vitest",
         "test:coverage": "vitest run --coverage",
-        "link": "npm link"
+        "link": "npm link",
+        "typecheck": "tsc --noEmit"
     },
     "engines": {
         "node": ">=20.0.0"
@@ -85,7 +91,11 @@
         "ora": "^9.3.0"
     },
     "devDependencies": {
+        "@types/node": "^25.2.3",
         "@vitest/coverage-v8": "^4.0.18",
+        "rimraf": "^6.1.2",
+        "tsx": "^4.21.0",
+        "typescript": "^5.9.3",
         "vitest": "^4.0.18"
     }
 }

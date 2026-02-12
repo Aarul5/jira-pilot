@@ -1,0 +1,84 @@
+import { Command } from 'commander';
+import chalk from 'chalk';
+import Table from 'cli-table3';
+import { api } from '../services/api-service.js';
+import ora from 'ora';
+import enquirer from 'enquirer';
+import { handleCommandError } from '../utils/error-handler.js';
+import { ConfigService } from '../services/config-service.js';
+
+export function registerFilterCommand(program: Command) {
+    const filterCmd = new Command('filter')
+        .description('Manage saved JQL filters (Local)')
+        .addHelpText('after', `
+Examples:
+  $ jira filter list
+  $ jira filter save "My Bugs" "assignee = currentUser() AND issuetype = Bug"
+  $ jira filter delete "My Bugs"
+        `);
+
+    filterCmd
+        .command('list')
+        .description('List saved filters')
+        .action(async () => {
+            const cfg = ConfigService.getConfig();
+            const filters = cfg.filters || {};
+
+            if (Object.keys(filters).length === 0) {
+                console.log(chalk.yellow('No local filters saved.'));
+                return;
+            }
+
+            const table = new Table({
+                head: [chalk.bold('Name'), chalk.bold('JQL')]
+            });
+
+            for (const [name, jql] of Object.entries(filters)) {
+                table.push([chalk.cyan(name), jql as string] as any);
+            }
+
+            console.log(table.toString());
+        });
+
+    filterCmd
+        .command('save')
+        .description('Save a JQL filter locally')
+        .argument('<name>', 'Filter Name')
+        .argument('<jql>', 'JQL Query')
+        .action(async (name, jql) => {
+            try {
+                const cfg = ConfigService.getConfig();
+                if (!cfg.filters) cfg.filters = {};
+
+                cfg.filters[name] = jql;
+                ConfigService.saveConfig(cfg);
+
+                console.log(chalk.green(`Filter "${chalk.bold(name)}" saved.`));
+            } catch (e: any) {
+                console.error(chalk.red(`Failed to save filter: ${e.message}`));
+            }
+        });
+
+    filterCmd
+        .command('delete')
+        .description('Delete a saved filter')
+        .argument('<name>', 'Filter Name')
+        .action(async (name) => {
+            try {
+                const cfg = ConfigService.getConfig();
+                if (!cfg.filters || !cfg.filters[name]) {
+                    console.log(chalk.yellow(`Filter "${name}" not found.`));
+                    return;
+                }
+
+                delete cfg.filters[name];
+                ConfigService.saveConfig(cfg);
+
+                console.log(chalk.green(`Filter "${chalk.bold(name)}" deleted.`));
+            } catch (e: any) {
+                console.error(chalk.red(`Failed to delete filter: ${e.message}`));
+            }
+        });
+
+    program.addCommand(filterCmd);
+}
