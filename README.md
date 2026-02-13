@@ -4,6 +4,7 @@
 [![NPM Version](https://img.shields.io/npm/v/jira-pilot.svg)](https://www.npmjs.com/package/jira-pilot)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 [![Snyk Security](https://snyk.io/test/github/Aarul5/jira-pilot/badge.svg)](https://snyk.io/test/github/Aarul5/jira-pilot)
+[![MCP Badge](https://lobehub.com/badge/mcp/aarul5-jira-pilot)](https://lobehub.com/mcp/aarul5-jira-pilot)
 
 **The AI-Powered Jira CLI and MCP Server for Humans and Agents.**
 
