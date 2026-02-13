@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import { Table } from 'cmd-table';
 import ora from '../utils/spinner.js';
 import enquirer from 'enquirer';
 import { api } from '../services/api-service.js';
@@ -93,10 +93,16 @@ export function registerDashboardCommand(program) {
                 const issues = myIssues.issues || [];
                 if (issues.length > 0) {
                     const table = new Table({
-                        head: [chalk.bold('Key'), chalk.bold('Type'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Priority')]
+                        columns: [
+                            { name: chalk.bold('Key') },
+                            { name: chalk.bold('Type') },
+                            { name: chalk.bold('Summary') },
+                            { name: chalk.bold('Status') },
+                            { name: chalk.bold('Priority') }
+                        ]
                     });
                     issues.forEach((i) => {
-                        table.push([
+                        table.addRow([
                             chalk.cyan(i.key),
                             i.fields.issuetype?.name || '',
                             i.fields.summary ? (i.fields.summary.length > 40 ? i.fields.summary.substring(0, 37) + '...' : i.fields.summary) : '',
@@ -104,7 +110,7 @@ export function registerDashboardCommand(program) {
                             getPriorityColor(i.fields.priority?.name || '', i.fields.priority?.name || '')
                         ]);
                     });
-                    console.log(table.toString());
+                    console.log(table.render());
                 }
                 else {
                     console.log(chalk.green('  🎉 No open issues — nice work!'));

@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import { Table } from 'cmd-table';
 import { api } from '../services/api-service.js';
 import ora from '../utils/spinner.js';
 import { handleCommandError } from '../utils/error-handler.js';
@@ -44,17 +44,22 @@ Common Actions:
                 return;
             }
             const table = new Table({
-                head: [chalk.bold('ID'), chalk.bold('Name'), chalk.bold('Type'), chalk.bold('Project')]
+                columns: [
+                    { name: chalk.bold('ID') },
+                    { name: chalk.bold('Name') },
+                    { name: chalk.bold('Type') },
+                    { name: chalk.bold('Project') }
+                ]
             });
             data.values.forEach((b) => {
-                table.push([
+                table.addRow([
                     b.id,
                     b.name,
                     b.type,
                     b.location?.projectKey || '-'
                 ]);
             });
-            console.log(table.toString());
+            console.log(table.render());
             console.log(chalk.grey(`Showing ${data.values.length} board(s)`));
         }
         catch (e) {

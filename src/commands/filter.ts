@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import { Table } from 'cmd-table';
 import { api } from '../services/api-service.js';
 import ora from '../utils/spinner.js';
 import enquirer from 'enquirer';
@@ -30,14 +30,17 @@ Examples:
             }
 
             const table = new Table({
-                head: [chalk.bold('Name'), chalk.bold('JQL')]
+                columns: [
+                    { name: chalk.bold('Name') },
+                    { name: chalk.bold('JQL') }
+                ]
             });
 
             for (const [name, jql] of Object.entries(filters)) {
-                table.push([chalk.cyan(name), jql as string] as any);
+                table.addRow([chalk.cyan(name), jql as string] as any);
             }
 
-            console.log(table.toString());
+            console.log(table.render());
         });
 
     filterCmd

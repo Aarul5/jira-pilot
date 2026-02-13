@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import { Table } from 'cmd-table';
 import { ConfigService } from '../services/config-service.js';
 export function registerFilterCommand(program) {
     const filterCmd = new Command('filter')
@@ -22,12 +22,15 @@ Examples:
             return;
         }
         const table = new Table({
-            head: [chalk.bold('Name'), chalk.bold('JQL')]
+            columns: [
+                { name: chalk.bold('Name') },
+                { name: chalk.bold('JQL') }
+            ]
         });
         for (const [name, jql] of Object.entries(filters)) {
-            table.push([chalk.cyan(name), jql]);
+            table.addRow([chalk.cyan(name), jql]);
         }
-        console.log(table.toString());
+        console.log(table.render());
     });
     filterCmd
         .command('save')

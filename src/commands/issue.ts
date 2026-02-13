@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import { Table } from 'cmd-table';
 import { api } from '../services/api-service.js';
 import { aiService } from '../services/ai-service.js';
 import ora from '../utils/spinner.js';
@@ -134,11 +134,18 @@ Examples:
                 }
 
                 const table = new Table({
-                    head: [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee'), chalk.bold('Created'), chalk.bold('Updated')]
+                    columns: [
+                        { name: chalk.bold('Key') },
+                        { name: chalk.bold('Summary') },
+                        { name: chalk.bold('Status') },
+                        { name: chalk.bold('Assignee') },
+                        { name: chalk.bold('Created') },
+                        { name: chalk.bold('Updated') }
+                    ]
                 });
 
                 data.issues.forEach((i: any) => {
-                    table.push([
+                    table.addRow([
                         chalk.cyan(i.key),
                         i.fields.summary ? (i.fields.summary.length > 50 ? i.fields.summary.substring(0, 47) + '...' : i.fields.summary) : '',
                         i.fields.status ? i.fields.status.name : '',
@@ -148,7 +155,7 @@ Examples:
                     ]);
                 });
 
-                console.log(table.toString());
+                console.log(table.render());
 
             } catch (e: any) {
                 handleCommandError(spinner, e, 'Failed to list issues');
@@ -232,6 +239,11 @@ Examples:
         .option('-d, --description <text>', 'Issue description')
         .option('--priority <name>', 'Priority name (e.g., High, Medium, Low)')
         .option('-a, --assignee <id>', 'Assignee account ID (use "me" for self)')
+        .option('-l, --labels <list>', 'Labels (comma separated)')
+        .option('-c, --components <list>', 'Component IDs (comma separated)', (v: string, l: string[]) => l.concat([v]), [])
+        .option('--fix-versions <list>', 'Fix Version IDs (comma separated)', (v: string, l: string[]) => l.concat([v]), [])
+        .option('--due-date <date>', 'Due Date (YYYY-MM-DD)')
+        .option('--no-input', 'Disable interactive prompts for optional fields')
         .option('--custom <key=value>', 'Custom fields (key=value, repeatable)', (v: string, l: string[]) => l.concat([v]), [])
         .addHelpText('after', `
 Examples:
@@ -339,7 +351,7 @@ Examples:
 
                 // ── Step 5: Priority ────────────────────────────────
                 let priorityName = options.priority;
-                if (!priorityName) {
+                if (!priorityName && !options.noInput) {
                     const spinner = ora('Fetching priorities...').start();
                     try {
                         const priorities = await api.get('/priority');
@@ -366,73 +378,87 @@ Examples:
                 }
 
                 // ── Step 5.5: Components ────────────────────────────
-                let componentIds: string[] = [];
-                // Interactive only for now (TODO: add flags)
-                const compSpinner = ora('Fetching components...').start();
-                try {
-                    const components = await api.get(`/project/${projectKey}/components`);
-                    compSpinner.stop();
+                let componentIds: string[] = options.components || [];
+                // Interactive only if components not provided and input allowed
+                if (componentIds.length === 0 && !options.noInput) {
+                    const compSpinner = ora('Fetching components...').start();
+                    try {
+                        const components = await api.get(`/project/${projectKey}/components`);
+                        compSpinner.stop();
 
-                    if (Array.isArray(components) && components.length > 0) {
-                        const { selectedComponents } = await enquirer.prompt({
-                            type: 'multiselect',
-                            name: 'selectedComponents',
-                            message: 'Select Components (Space to select, Enter to confirm):',
-                            choices: components.map((c: any) => ({ name: c.id, message: c.name }))
-                        }) as any;
-                        componentIds = selectedComponents;
+                        if (Array.isArray(components) && components.length > 0) {
+                            const { selectedComponents } = await enquirer.prompt({
+                                type: 'multiselect',
+                                name: 'selectedComponents',
+                                message: 'Select Components (Space to select, Enter to confirm):',
+                                choices: components.map((c: any) => ({ name: c.id, message: c.name }))
+                            }) as any;
+                            componentIds = selectedComponents;
+                        }
+                    } catch {
+                        compSpinner.stop();
                     }
-                } catch {
-                    compSpinner.stop();
                 }
 
                 // ── Step 5.6: Labels ────────────────────────────────
                 let labels: string[] = [];
-                const { inputLabels } = await enquirer.prompt({
-                    type: 'input',
-                    name: 'inputLabels',
-                    message: 'Labels (comma-separated, optional):'
-                }) as any;
+                if (options.labels) {
+                    labels = options.labels.split(',').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+                }
 
-                if (inputLabels && inputLabels.trim().length > 0) {
-                    labels = inputLabels.split(',').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+                if (labels.length === 0 && !options.noInput) {
+                    const { inputLabels } = await enquirer.prompt({
+                        type: 'input',
+                        name: 'inputLabels',
+                        message: 'Labels (comma-separated, optional):'
+                    }) as any;
+
+                    if (inputLabels && inputLabels.trim().length > 0) {
+                        labels = inputLabels.split(',').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
+                    }
                 }
 
                 // ── Step 5.7: Fix Versions ──────────────────────────
-                let fixVersionIds: string[] = [];
-                const verSpinner = ora('Fetching versions...').start();
-                try {
-                    const versions = await api.get(`/project/${projectKey}/versions`);
-                    verSpinner.stop();
+                let fixVersionIds: string[] = options.fixVersions || [];
 
-                    // Filter unreleased versions usually
-                    const unreleased = versions.filter((v: any) => !v.released);
+                if (fixVersionIds.length === 0 && !options.noInput) {
+                    const verSpinner = ora('Fetching versions...').start();
+                    try {
+                        const versions = await api.get(`/project/${projectKey}/versions`);
+                        verSpinner.stop();
 
-                    if (Array.isArray(unreleased) && unreleased.length > 0) {
-                        const { selectedVersions } = await enquirer.prompt({
-                            type: 'multiselect',
-                            name: 'selectedVersions',
-                            message: 'Fix Versions:',
-                            choices: unreleased.map((v: any) => ({ name: v.id, message: v.name }))
-                        }) as any;
-                        fixVersionIds = selectedVersions;
+                        // Filter unreleased versions usually
+                        const unreleased = versions.filter((v: any) => !v.released);
+
+                        if (Array.isArray(unreleased) && unreleased.length > 0) {
+                            const { selectedVersions } = await enquirer.prompt({
+                                type: 'multiselect',
+                                name: 'selectedVersions',
+                                message: 'Fix Versions:',
+                                choices: unreleased.map((v: any) => ({ name: v.id, message: v.name }))
+                            }) as any;
+                            fixVersionIds = selectedVersions;
+                        }
+                    } catch {
+                        verSpinner.stop();
                     }
-                } catch {
-                    verSpinner.stop();
                 }
 
                 // ── Step 5.8: Due Date ──────────────────────────────
-                let duedate: string | null = null;
-                const { inputDueDate } = await enquirer.prompt({
-                    type: 'input',
-                    name: 'inputDueDate',
-                    message: 'Due Date (YYYY-MM-DD, optional):',
-                    validate: (val: string) => {
-                        if (!val) return true;
-                        return /^\d{4}-\d{2}-\d{2}$/.test(val) || 'Format must be YYYY-MM-DD';
-                    }
-                }) as any;
-                if (inputDueDate) duedate = inputDueDate;
+                let duedate: string | null = options.dueDate || null;
+
+                if (!duedate && !options.noInput) {
+                    const { inputDueDate } = await enquirer.prompt({
+                        type: 'input',
+                        name: 'inputDueDate',
+                        message: 'Due Date (YYYY-MM-DD, optional):',
+                        validate: (val: string) => {
+                            if (!val) return true;
+                            return /^\d{4}-\d{2}-\d{2}$/.test(val) || 'Format must be YYYY-MM-DD';
+                        }
+                    }) as any;
+                    if (inputDueDate) duedate = inputDueDate;
+                }
 
                 // ── Step 6: Assignee ────────────────────────────────
                 let assigneeId = options.assignee;
@@ -510,25 +536,27 @@ Examples:
                 }
 
                 // ── Confirmation ────────────────────────────────────
-                console.log(chalk.blue('\n── Issue Summary ──────────────────'));
-                console.log(`  Project:     ${chalk.cyan(projectKey)}`);
-                console.log(`  Type:        ${issueTypeName}`);
-                console.log(`  Summary:     ${summary}`);
-                console.log(`  Description: ${description || chalk.grey('(none)')}`);
-                console.log(`  Priority:    ${priorityName || chalk.grey('(default)')}`);
-                console.log(`  Assignee:    ${assigneeId || chalk.grey('Unassigned')}`);
-                console.log(chalk.blue('──────────────────────────────────\n'));
+                if (!options.noInput) {
+                    console.log(chalk.blue('\n── Issue Summary ──────────────────'));
+                    console.log(`  Project:     ${chalk.cyan(projectKey)}`);
+                    console.log(`  Type:        ${issueTypeName}`);
+                    console.log(`  Summary:     ${summary}`);
+                    console.log(`  Description: ${description || chalk.grey('(none)')}`);
+                    console.log(`  Priority:    ${priorityName || chalk.grey('(default)')}`);
+                    console.log(`  Assignee:    ${assigneeId || chalk.grey('Unassigned')}`);
+                    console.log(chalk.blue('──────────────────────────────────\n'));
 
-                const { confirmed } = await enquirer.prompt({
-                    type: 'confirm',
-                    name: 'confirmed',
-                    message: 'Create this issue?',
-                    initial: true
-                }) as any;
+                    const { confirmed } = await enquirer.prompt({
+                        type: 'confirm',
+                        name: 'confirmed',
+                        message: 'Create this issue?',
+                        initial: true
+                    }) as any;
 
-                if (!confirmed) {
-                    console.log(chalk.yellow('Issue creation cancelled.'));
-                    return;
+                    if (!confirmed) {
+                        console.log(chalk.yellow('Issue creation cancelled.'));
+                        return;
+                    }
                 }
 
                 // ── Build Request Body ──────────────────────────────
@@ -1012,17 +1040,22 @@ Examples:
                 }
 
                 const table = new Table({
-                    head: [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee')]
+                    columns: [
+                        { name: chalk.bold('Key') },
+                        { name: chalk.bold('Summary') },
+                        { name: chalk.bold('Status') },
+                        { name: chalk.bold('Assignee') }
+                    ]
                 });
                 data.issues.forEach((i: any) => {
-                    table.push([
+                    table.addRow([
                         chalk.cyan(i.key),
                         i.fields.summary ? (i.fields.summary.length > 55 ? i.fields.summary.substring(0, 52) + '...' : i.fields.summary) : '',
                         i.fields.status?.name || '',
                         i.fields.assignee?.displayName || 'Unassigned'
                     ]);
                 });
-                console.log(table.toString());
+                console.log(table.render());
                 console.log(chalk.grey(`Found ${data.issues.length} result(s)`));
 
             } catch (e) {
