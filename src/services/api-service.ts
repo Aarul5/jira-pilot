@@ -101,14 +101,18 @@ export class ApiService {
         return response.data;
     }
 
-    async search(jql: string, startAt: number = 0, maxResults: number = 50) {
-        return this.post('/search/jql', {
+    async search(jql: string, startAt: number = 0, maxResults: number = 50, nextPageToken?: string) {
+        const payload: any = {
             jql,
-            startAt,
             maxResults,
-            fields: ['summary', 'status', 'assignee', 'priority', 'issuetype', 'created', 'updated', 'project'],
-            validation: 'warn'
-        });
+            fields: ['summary', 'status', 'assignee', 'priority', 'issuetype', 'created', 'updated', 'project']
+        };
+
+        if (nextPageToken) {
+            payload.nextPageToken = nextPageToken;
+        }
+
+        return this.post('/search/jql', payload);
     }
 
     async upload(url: string, formData: any) {

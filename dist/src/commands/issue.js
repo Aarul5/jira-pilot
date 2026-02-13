@@ -68,19 +68,15 @@ Examples:
             if (options.jql)
                 jqlParts.push(options.jql);
             // Order by updated desc by default if no JQL
-            if (!options.jql && jqlParts.length === 0) {
-                jqlParts.push('order by updated DESC');
-            }
-            else if (jqlParts.length > 0 && !options.jql) {
-                // Add order if not custom jql
-                // jqlParts.push('order by updated DESC');
-            }
             const jql = jqlParts.join(' AND ');
+            // Default to last 30 days if no filter provided to satisfy "unbounded" check
+            const defaultJql = 'updated >= -30d ORDER BY updated DESC';
+            const finalJql = jql || defaultJql;
             const searchApi = '/search/jql';
             const body = {
-                jql: jql || 'created is not empty',
+                jql: finalJql,
                 maxResults: parseInt(options.limit),
-                fields: ['summary', 'status', 'assignee', 'created', 'updated', 'description']
+                fields: ['summary', 'status', 'assignee', 'created', 'updated', 'description', 'priority', 'issuetype', 'project', 'reporter']
             };
             const data = await api.post(searchApi, body);
             spinner.stop();
