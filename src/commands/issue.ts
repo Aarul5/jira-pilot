@@ -14,6 +14,7 @@ import { registerWorklogCommand } from './issue-worklog.js';
 import { registerPrCommand } from './issue-pr.js';
 import { registerAttachCommand } from './issue-attach.js';
 import { ConfigService } from '../services/config-service.js';
+import { API } from '../utils/api-paths.js';
 
 export function registerIssueCommand(program: Command) {
     const issueCmd = new Command('issue')
@@ -68,23 +69,19 @@ Examples:
                 if (options.jql) jqlParts.push(options.jql);
 
                 // Order by updated desc by default if no JQL
-                if (!options.jql && jqlParts.length === 0) {
-                    jqlParts.push('order by updated DESC');
-                } else if (jqlParts.length > 0 && !options.jql) {
-                    // Add order if not custom jql
-                    // jqlParts.push('order by updated DESC');
-                }
-
                 const jql = jqlParts.join(' AND ');
 
-                const searchApi = '/search/jql';
+                // Default to last 30 days if no filter provided to satisfy "unbounded" check
+                const defaultJql = 'updated >= -30d ORDER BY updated DESC';
+                const finalJql = jql || defaultJql;
+
                 const body = {
-                    jql: jql || 'created is not empty',
+                    jql: finalJql,
                     maxResults: parseInt(options.limit),
-                    fields: ['summary', 'status', 'assignee', 'created', 'updated', 'description']
+                    fields: ['summary', 'status', 'assignee', 'created', 'updated', 'description', 'priority', 'issuetype', 'project', 'reporter']
                 };
 
-                const data = await api.post(searchApi, body);
+                const data = await api.post(API.SEARCH.JQL, body);
                 spinner.stop();
 
                 if (!data.issues || data.issues.length === 0) {
@@ -177,7 +174,7 @@ Examples:
             if (!check.valid) { console.error(chalk.red(check.message)); return; }
             const spinner = ora(`Fetching issue ${issueKey}...`).start();
             try {
-                const issue = await api.get(`/issue/${issueKey}`);
+                const issue = await api.get(API.ISSUE.GET(issueKey));
                 spinner.stop();
 
                 if (options.output === 'json') {
@@ -260,7 +257,7 @@ Examples:
                 let projectKey = options.project;
                 if (!projectKey) {
                     const spinner = ora('Fetching projects...').start();
-                    const projectData = await api.get('/project/search');
+                    const projectData = await api.get(API.PROJECT.SEARCH);
                     spinner.stop();
 
                     if (!projectData.values || projectData.values.length === 0) {
@@ -289,12 +286,12 @@ Examples:
                     let issueTypes = [];
                     try {
                         // Jira Cloud v3 - createmeta endpoint
-                        const metaData = await api.get(`/issue/createmeta/${projectKey}/issuetypes`);
+                        const metaData = await api.get(API.ISSUE.CREATEMETA(projectKey));
                         issueTypes = metaData.issueTypes || metaData.values || [];
                     } catch (metaErr) {
                         // Fallback: use project-level issue types
                         try {
-                            const projectInfo = await api.get(`/project/${projectKey}`);
+                            const projectInfo = await api.get(API.PROJECT.GET(projectKey));
                             issueTypes = projectInfo.issueTypes || [];
                         } catch {
                             issueTypes = [
@@ -354,7 +351,7 @@ Examples:
                 if (!priorityName && !options.noInput) {
                     const spinner = ora('Fetching priorities...').start();
                     try {
-                        const priorities = await api.get('/priority');
+                        const priorities = await api.get(API.PRIORITY.ALL);
                         spinner.stop();
 
                         if (Array.isArray(priorities) && priorities.length > 0) {
@@ -383,7 +380,7 @@ Examples:
                 if (componentIds.length === 0 && !options.noInput) {
                     const compSpinner = ora('Fetching components...').start();
                     try {
-                        const components = await api.get(`/project/${projectKey}/components`);
+                        const components = await api.get(API.PROJECT.COMPONENTS(projectKey));
                         compSpinner.stop();
 
                         if (Array.isArray(components) && components.length > 0) {
@@ -424,7 +421,7 @@ Examples:
                 if (fixVersionIds.length === 0 && !options.noInput) {
                     const verSpinner = ora('Fetching versions...').start();
                     try {
-                        const versions = await api.get(`/project/${projectKey}/versions`);
+                        const versions = await api.get(API.PROJECT.VERSIONS(projectKey));
                         verSpinner.stop();
 
                         // Filter unreleased versions usually
@@ -477,7 +474,7 @@ Examples:
                     if (assigneeChoice === 'me') {
                         const spinner = ora('Fetching your account...').start();
                         try {
-                            const myself = await api.get('/myself');
+                            const myself = await api.get(API.USER.MYSELF);
                             assigneeId = myself.accountId;
                             spinner.stop();
                         } catch {
@@ -494,7 +491,7 @@ Examples:
                         if (searchQuery.trim()) {
                             const spinner = ora('Searching users...').start();
                             try {
-                                const users = await api.get(`/user/search?query=${encodeURIComponent(searchQuery)}`);
+                                const users = await api.get(`${API.USER.SEARCH}?query=${encodeURIComponent(searchQuery)}`);
                                 spinner.stop();
 
                                 if (Array.isArray(users) && users.length > 0) {
@@ -526,7 +523,7 @@ Examples:
                     // --assignee me flag: resolve to account ID
                     const spinner = ora('Fetching your account...').start();
                     try {
-                        const myself = await api.get('/myself');
+                        const myself = await api.get(API.USER.MYSELF);
                         assigneeId = myself.accountId;
                         spinner.stop();
                     } catch {
@@ -611,7 +608,7 @@ Examples:
 
                 // ── Create Issue ────────────────────────────────────
                 const spinner = ora('Creating issue...').start();
-                const result = await api.post('/issue', issueBody);
+                const result = await api.post(API.ISSUE.BASE, issueBody);
                 spinner.succeed(chalk.green(`Issue created: ${chalk.bold(result.key)}`));
 
                 console.log(chalk.grey(`View it: jira issue view ${result.key}`));
@@ -639,11 +636,11 @@ Examples:
             const spinner = ora(`Fetching transitions for ${issueKey}...`).start();
             try {
                 // Fetch current issue to show context
-                const issue = await api.get(`/issue/${issueKey}?fields=summary,status`);
+                const issue = await api.get(`${API.ISSUE.GET(issueKey)}?fields=summary,status`);
                 const currentStatus = issue.fields.status.name;
 
                 // Fetch available transitions
-                const transData = await api.get(`/issue/${issueKey}/transitions`);
+                const transData = await api.get(API.ISSUE.TRANSITIONS(issueKey));
                 spinner.stop();
 
                 if (!transData.transitions || transData.transitions.length === 0) {
@@ -690,7 +687,7 @@ Examples:
 
                 // Execute transition
                 const execSpinner = ora(`Transitioning to "${targetTransition.to.name}"...`).start();
-                await api.post(`/issue/${issueKey}/transitions`, {
+                await api.post(API.ISSUE.TRANSITIONS(issueKey), {
                     transition: { id: targetTransition.id }
                 });
                 execSpinner.succeed(chalk.green(`${issueKey} transitioned: ${currentStatus} → ${chalk.bold(targetTransition.to.name)}`));
@@ -721,7 +718,7 @@ Examples:
                 if (!assigneeId) {
                     // Interactive selection
                     const spinner = ora(`Fetching issue ${issueKey}...`).start();
-                    const issue = await api.get(`/issue/${issueKey}?fields=summary,assignee`);
+                    const issue = await api.get(`${API.ISSUE.GET(issueKey)}?fields=summary,assignee`);
                     spinner.stop();
 
                     const currentAssignee = issue.fields.assignee?.displayName || 'Unassigned';
@@ -743,7 +740,7 @@ Examples:
 
                 if (assigneeId === 'me') {
                     const spinner = ora('Fetching your account...').start();
-                    const myself = await api.get('/myself');
+                    const myself = await api.get(API.USER.MYSELF);
                     assigneeId = myself.accountId;
                     spinner.stop();
                 }
@@ -756,7 +753,7 @@ Examples:
                     }) as any;
 
                     const spinner = ora('Searching users...').start();
-                    const users = await api.get(`/user/search?query=${encodeURIComponent(searchQuery)}`);
+                    const users = await api.get(`${API.USER.SEARCH}?query=${encodeURIComponent(searchQuery)}`);
                     spinner.stop();
 
                     if (!Array.isArray(users) || users.length === 0) {
@@ -781,7 +778,7 @@ Examples:
                     ? { accountId: null }
                     : { accountId: assigneeId };
 
-                await api.put(`/issue/${issueKey}/assignee`, body);
+                await api.put(API.ISSUE.ASSIGNEE(issueKey), body);
                 spinner.succeed(chalk.green(`${issueKey} ${assigneeId === 'none' ? 'unassigned' : 'assigned'} successfully.`));
 
             } catch (e: any) {
@@ -826,7 +823,7 @@ Examples:
                 }
 
                 const spinner = ora('Adding comment...').start();
-                await api.post(`/issue/${issueKey}/comment`, {
+                await api.post(API.ISSUE.COMMENT(issueKey), {
                     body: textToADF(commentText)
                 });
                 spinner.succeed(chalk.green(`Comment added to ${issueKey}.`));
@@ -856,7 +853,7 @@ Examples:
             if (!check.valid) { console.error(chalk.red(check.message)); return; }
             const spinner = ora(`Fetching issue ${issueKey}...`).start();
             try {
-                const issue = await api.get(`/issue/${issueKey}?fields=summary,description,priority`);
+                const issue = await api.get(`${API.ISSUE.GET(issueKey)}?fields=summary,description,priority`);
                 spinner.stop();
 
                 const updateBody: any = { fields: {} };
@@ -914,7 +911,7 @@ Examples:
                             if (desc) updateBody.fields.description = textToADF(desc);
                         }
                         if (field === 'priority') {
-                            const priorities = await api.get('/priority');
+                            const priorities = await api.get(API.PRIORITY.ALL);
                             const prioSelect = new Select({
                                 name: 'priority',
                                 message: 'Select priority',
@@ -923,7 +920,7 @@ Examples:
                             updateBody.fields.priority = { name: await prioSelect.run() };
                         }
                         if (field === 'components') {
-                            const components = await api.get(`/project/${issue.fields.project.key}/components`);
+                            const components = await api.get(API.PROJECT.COMPONENTS(issue.fields.project.key));
                             if (components.length > 0) {
                                 const compSelect = new Select({ // Using Enquirer directly via 'any' above, but actually Select is single select? 
                                     // Wait, fieldSelect was initialized from enquirer as any. 
@@ -959,7 +956,7 @@ Examples:
                             updateBody.fields.labels = labelStr.split(',').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
                         }
                         if (field === 'fixVersions') {
-                            const versions = await api.get(`/project/${issue.fields.project.key}/versions`);
+                            const versions = await api.get(API.PROJECT.VERSIONS(issue.fields.project.key));
                             const unreleased = versions.filter((v: any) => !v.released);
                             if (unreleased.length > 0) {
                                 const { selectedVersions } = await enquirer.prompt({
@@ -989,7 +986,7 @@ Examples:
                 }
 
                 const updateSpinner = ora('Updating issue...').start();
-                await api.put(`/issue/${issueKey}`, updateBody);
+                await api.put(API.ISSUE.GET(issueKey), updateBody);
                 updateSpinner.succeed(`${chalk.cyan(issueKey)} updated successfully`);
 
             } catch (e: any) {
@@ -1018,7 +1015,7 @@ Examples:
                 if (options.project) jqlParts.push(`project = "${options.project}"`);
                 const jql = jqlParts.join(' AND ') + ' ORDER BY updated DESC';
 
-                const data = await api.post('/search/jql', {
+                const data = await api.post(API.SEARCH.JQL, {
                     jql,
                     maxResults: parseInt(options.limit),
                     fields: ['summary', 'status', 'assignee', 'updated']
@@ -1196,7 +1193,7 @@ Examples:
                 } catch (err) {
                     // Fallback to project fetch
                     try {
-                        const proj = await api.get(`/project/${projectKey}`);
+                        const proj = await api.get(API.PROJECT.GET(projectKey));
                         subtaskTypes = (proj.issueTypes || []).filter((t: any) => t.subtask);
                     } catch (e) {
                         console.error(chalk.red('Failed to fetch project issue types.'));
@@ -1258,7 +1255,7 @@ Examples:
                 }
 
                 const createSpinner = ora('Creating subtask...').start();
-                const result = await api.post('/issue', issueBody);
+                const result = await api.post(API.ISSUE.BASE, issueBody);
                 createSpinner.succeed(chalk.green(`Subtask created: ${chalk.bold(result.key)}`));
 
             } catch (e: any) {

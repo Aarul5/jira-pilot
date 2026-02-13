@@ -4,6 +4,7 @@ import ora from '../utils/spinner.js';
 import enquirer from 'enquirer';
 import { api } from '../services/api-service.js';
 import { handleCommandError } from '../utils/error-handler.js';
+import { API } from '../utils/api-paths.js';
 
 export function registerBulkCommand(program: Command) {
     const bulkCmd = new Command('bulk')
@@ -29,7 +30,7 @@ Examples:
         .action(async (options: any) => {
             const spinner = ora('Finding matching issues...').start();
             try {
-                const data = await api.post('/search/jql', {
+                const data = await api.post(API.SEARCH.JQL, {
                     jql: options.jql,
                     maxResults: parseInt(options.limit),
                     fields: ['summary', 'status']
@@ -50,7 +51,7 @@ Examples:
 
                 if (!targetStatus) {
                     // Get transitions from the first issue to show available statuses
-                    const transData = await api.get(`/issue/${data.issues[0].key}/transitions`);
+                    const transData = await api.get(API.ISSUE.TRANSITIONS(data.issues[0].key));
                     const { Select } = enquirer as any;
                     const statusSelect = new Select({
                         name: 'status',
@@ -78,13 +79,13 @@ Examples:
 
                 for (const issue of data.issues) {
                     try {
-                        const transData = await api.get(`/issue/${issue.key}/transitions`);
+                        const transData = await api.get(API.ISSUE.TRANSITIONS(issue.key));
                         const transition = transData.transitions.find(
                             (t: any) => t.name.toLowerCase() === targetStatus.toLowerCase()
                         );
 
                         if (transition) {
-                            await api.post(`/issue/${issue.key}/transitions`, {
+                            await api.post(API.ISSUE.TRANSITIONS(issue.key), {
                                 transition: { id: transition.id }
                             });
                             success++;
@@ -114,7 +115,7 @@ Examples:
         .action(async (options: any) => {
             const spinner = ora('Finding issues...').start();
             try {
-                const data = await api.post('/search/jql', {
+                const data = await api.post(API.SEARCH.JQL, {
                     jql: options.jql,
                     maxResults: 50,
                     fields: ['summary', 'assignee']
@@ -141,7 +142,7 @@ Examples:
                 }
 
                 if (assigneeId === 'me') {
-                    const me = await api.get('/myself');
+                    const me = await api.get(API.USER.MYSELF);
                     assigneeId = me.accountId;
                 }
 
@@ -156,7 +157,7 @@ Examples:
 
                 const processSpinner = ora('Assigning...').start();
                 for (const issue of data.issues) {
-                    await api.put(`/issue/${issue.key}/assignee`, { accountId: assigneeId });
+                    await api.put(API.ISSUE.ASSIGNEE(issue.key), { accountId: assigneeId });
                 }
                 processSpinner.succeed('Bulk assign complete.');
 
@@ -181,7 +182,7 @@ Examples:
 
             const spinner = ora('Finding issues...').start();
             try {
-                const data = await api.post('/search/jql', {
+                const data = await api.post(API.SEARCH.JQL, {
                     jql: options.jql,
                     maxResults: 50,
                     fields: ['summary', 'labels']
@@ -215,7 +216,7 @@ Examples:
                     addList.forEach((l: string) => newLabels.add(l));
                     removeList.forEach((l: string) => newLabels.delete(l));
 
-                    await api.put(`/issue/${issue.key}`, {
+                    await api.put(API.ISSUE.GET(issue.key), {
                         fields: { labels: Array.from(newLabels) }
                     });
                 }

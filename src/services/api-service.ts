@@ -1,6 +1,7 @@
 import { HttpClient } from '../utils/http.js';
 import chalk from 'chalk';
 import { getCredentials } from '../utils/config.js';
+import { API } from '../utils/api-paths.js';
 
 export class ApiService {
     private client: any;
@@ -101,14 +102,18 @@ export class ApiService {
         return response.data;
     }
 
-    async search(jql: string, startAt: number = 0, maxResults: number = 50) {
-        return this.post('/search/jql', {
+    async search(jql: string, startAt: number = 0, maxResults: number = 50, nextPageToken?: string) {
+        const payload: any = {
             jql,
-            startAt,
             maxResults,
-            fields: ['summary', 'status', 'assignee', 'priority', 'issuetype', 'created', 'updated', 'project'],
-            validation: 'warn'
-        });
+            fields: ['summary', 'status', 'assignee', 'priority', 'issuetype', 'created', 'updated', 'project']
+        };
+
+        if (nextPageToken) {
+            payload.nextPageToken = nextPageToken;
+        }
+
+        return this.post(API.SEARCH.JQL, payload);
     }
 
     async upload(url: string, formData: any) {

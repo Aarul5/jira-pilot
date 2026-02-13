@@ -5,6 +5,7 @@ import ora from '../utils/spinner.js';
 import enquirer from 'enquirer';
 import { api } from '../services/api-service.js';
 import { handleCommandError } from '../utils/error-handler.js';
+import { API } from '../utils/api-paths.js';
 
 // Utility for status icons
 const getStatusIcon = (status: string) => {
@@ -67,11 +68,11 @@ export function registerDashboardCommand(program: Command) {
                 console.clear();
                 const spinner = ora('Loading dashboard...').start();
                 try {
-                    const myself = await api.get('/myself');
+                    const myself = await api.get(API.USER.MYSELF);
 
                     // Fetch in parallel: my open issues + recently updated
                     const [myIssues, recentIssues] = await Promise.all([
-                        api.post('/search/jql', {
+                        api.post(API.SEARCH.JQL, {
                             jql: 'assignee = currentUser() AND statusCategory != Done ORDER BY priority ASC, updated DESC', // Fixed Sort
                             maxResults: 15,
                             fields: ['summary', 'status', 'priority', 'updated', 'issuetype']
@@ -174,7 +175,7 @@ export function registerDashboardCommand(program: Command) {
                     if (issueAction === 'back') continue;
 
                     if (issueAction === 'view') {
-                        const issue = await api.get(`/issue/${selectedKey}`);
+                        const issue = await api.get(API.ISSUE.GET(selectedKey));
                         console.log(chalk.bold(`\n${issue.key}: ${issue.fields.summary}`));
                         console.log(chalk.grey('────────────────────────────────────────'));
                         console.log(`${getStatusIcon(issue.fields.status.name)} ${issue.fields.status.name}  |  ${getPriorityColor(issue.fields.priority?.name || '', issue.fields.priority?.name || '')}`);
@@ -190,27 +191,28 @@ export function registerDashboardCommand(program: Command) {
                         }) as any;
                         if (inputComment) {
                             const { textToADF } = await import('../utils/text-to-adf.js');
-                            await api.post(`/issue/${selectedKey}/comment`, { body: textToADF(inputComment) });
+                            await api.post(API.ISSUE.COMMENT(selectedKey), { body: textToADF(inputComment) });
                             console.log(chalk.green('Comment added.'));
                             await pause();
                         }
                     }
 
                     if (issueAction === 'transition') {
-                        const transData = await api.get(`/issue/${selectedKey}/transitions`);
+                        const transData = await api.get(API.ISSUE.TRANSITIONS(selectedKey));
                         const { transId } = await enquirer.prompt({
                             type: 'select',
                             name: 'transId',
                             message: 'Select Status:',
                             choices: transData.transitions.map((t: any) => ({ name: t.id, message: t.to.name }))
                         }) as any;
-                        await api.post(`/issue/${selectedKey}/transitions`, { transition: { id: transId } });
+                        await api.post(API.ISSUE.TRANSITIONS(selectedKey), { transition: { id: transId } });
                         console.log(chalk.green('Transitioned.'));
                         await pause();
                     }
 
+
                     if (issueAction === 'assign') {
-                        await api.put(`/issue/${selectedKey}/assignee`, { accountId: myself.accountId });
+                        await api.put(API.ISSUE.ASSIGNEE(selectedKey), { accountId: myself.accountId });
                         console.log(chalk.green('Assigned to you.'));
                         await pause();
                     }

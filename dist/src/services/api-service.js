@@ -1,6 +1,7 @@
 import { HttpClient } from '../utils/http.js';
 import chalk from 'chalk';
 import { getCredentials } from '../utils/config.js';
+import { API } from '../utils/api-paths.js';
 export class ApiService {
     client;
     agileClient;
@@ -84,14 +85,16 @@ export class ApiService {
         const response = await this.handleRequest(this.client.delete(url, config));
         return response.data;
     }
-    async search(jql, startAt = 0, maxResults = 50) {
-        return this.post('/search/jql', {
+    async search(jql, startAt = 0, maxResults = 50, nextPageToken) {
+        const payload = {
             jql,
-            startAt,
             maxResults,
-            fields: ['summary', 'status', 'assignee', 'priority', 'issuetype', 'created', 'updated', 'project'],
-            validation: 'warn'
-        });
+            fields: ['summary', 'status', 'assignee', 'priority', 'issuetype', 'created', 'updated', 'project']
+        };
+        if (nextPageToken) {
+            payload.nextPageToken = nextPageToken;
+        }
+        return this.post(API.SEARCH.JQL, payload);
     }
     async upload(url, formData) {
         this.ensureClient();

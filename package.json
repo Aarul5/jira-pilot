@@ -1,6 +1,6 @@
 {
     "name": "jira-pilot",
-    "version": "2.1.3",
+    "version": "2.2.0",
     "description": "AI powered Jira CLI and MCP server for humans and agents — manage issues, sprints, boards with interactive wizards, multi-provider AI (OpenAI/Gemini/Anthropic), and an 14-tool MCP server for AI assistants",
     "main": "dist/src/index.js",
     "type": "module",

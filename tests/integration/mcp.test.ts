@@ -1,6 +1,15 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+    ListPromptsRequestSchema,
+    GetPromptRequestSchema,
+    ListResourceTemplatesRequestSchema,
+    ListResourcesRequestSchema,
+    ReadResourceRequestSchema,
+    CallToolRequestSchema
+} from "@modelcontextprotocol/sdk/types.js";
 import { api } from '../../src/services/api-service.js';
+import { API } from '../../src/utils/api-paths.js';
 
 // Mock API
 vi.mock('../../src/services/api-service.js', () => ({
@@ -50,8 +59,15 @@ describe('MCP Server Integration', () => {
             throw new Error(`Expected at least 2 setRequestHandler calls, got ${mocks.setRequestHandler.mock.calls.length}`);
         }
 
-        // The second call is the tool handler (CallToolRequestSchema)
-        toolHandler = mocks.setRequestHandler.mock.calls[1][1];
+        // Find the tool handler (CallToolRequestSchema)
+        const initCalls = mocks.setRequestHandler.mock.calls;
+        const toolHandlerCall = initCalls.find(call => call[0] === CallToolRequestSchema);
+
+        if (!toolHandlerCall) {
+            throw new Error('CallToolRequestSchema handler not registered');
+        }
+
+        toolHandler = toolHandlerCall[1];
     });
 
     it('should register handlers', () => {
@@ -76,7 +92,7 @@ describe('MCP Server Integration', () => {
                 }
             });
 
-            expect(api.get).toHaveBeenCalledWith('/myself');
+            expect(api.get).toHaveBeenCalledWith(API.USER.MYSELF);
             const content = JSON.parse(result.content[0].text);
             expect(content.accountId).toBe('acc-123');
         });
@@ -95,7 +111,7 @@ describe('MCP Server Integration', () => {
                 }
             });
 
-            expect(api.get).toHaveBeenCalledWith('/user/search?query=dev');
+            expect(api.get).toHaveBeenCalledWith(`${API.USER.SEARCH}?query=dev`);
             const content = JSON.parse(result.content[0].text);
             expect(content).toHaveLength(1);
         });
@@ -116,7 +132,7 @@ describe('MCP Server Integration', () => {
                 }
             });
 
-            expect(api.put).toHaveBeenCalledWith('/issue/TEST-100', {
+            expect(api.put).toHaveBeenCalledWith(API.ISSUE.GET('TEST-100'), {
                 fields: {
                     summary: 'New Summary',
                     priority: { name: 'High' }
@@ -142,7 +158,7 @@ describe('MCP Server Integration', () => {
                 }
             });
 
-            expect(api.post).toHaveBeenCalledWith('/issue/TEST-100/worklog', {
+            expect(api.post).toHaveBeenCalledWith(API.ISSUE.WORKLOG('TEST-100'), {
                 timeSpent: '2h',
                 comment: expect.objectContaining({ type: 'doc' }) // textToADF output
             });
@@ -176,9 +192,9 @@ describe('MCP Server Integration', () => {
             });
 
             // Verify calls
-            expect(api.get).toHaveBeenCalledWith('/issue/PROJ-100?fields=project');
-            expect(api.get).toHaveBeenCalledWith('/issue/createmeta/PROJ/issuetypes');
-            expect(api.post).toHaveBeenCalledWith('/issue', {
+            expect(api.get).toHaveBeenCalledWith(`${API.ISSUE.GET('PROJ-100')}?fields=project`);
+            expect(api.get).toHaveBeenCalledWith(API.ISSUE.CREATEMETA('PROJ'));
+            expect(api.post).toHaveBeenCalledWith(API.ISSUE.BASE, {
                 fields: {
                     project: { key: 'PROJ' },
                     parent: { key: 'PROJ-100' },

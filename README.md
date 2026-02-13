@@ -493,6 +493,36 @@ Add to your `.vscode/mcp.json` or equivalent:
 }
 ```
 
+### 📝 Prompts
+
+Pre-defined templates to help LLMs interact with Jira effectively.
+
+| Prompt | Arguments | Description |
+|--------|-----------|-------------|
+| **jira-assist** | None | System prompt that teaches the LLM how to use Jira Pilot tools best. |
+| **jira-summarize-issue** | `issueKey` | Fetches an issue and instructs the LLM to provide a concise summary. |
+
+### 📦 Resources
+
+Direct access to Jira data as context.
+
+| URI | Description |
+|-----|-------------|
+| **jira://myself** | Details of the currently authenticated user (excluding sensitive PII). |
+| **jira://projects** | List of all accessible Jira projects. |
+
+### 🔍 Verification
+
+You can verify the MCP server implementation using the official inspector:
+
+```bash
+# If running fro source
+npx @modelcontextprotocol/inspector node dist/bin/jira.js mcp
+
+# If installed globally (or via npx)
+npx @modelcontextprotocol/inspector npx -y jira-pilot mcp
+```
+
 ---
 
 ## 📦 CLI Command Reference
