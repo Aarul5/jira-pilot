@@ -6,6 +6,7 @@ import { textToADF } from "../utils/text-to-adf.js";
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { API } from "../utils/api-paths.js";
 // Load package.json for version
 const __dirname = dirname(fileURLToPath(import.meta.url));
 function getPackageVersion() {
@@ -321,7 +322,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
     });
     try {
         if (uri === "jira://myself") {
-            const myself = await api.get('/myself');
+            const myself = await api.get(API.USER.MYSELF);
             // Mask sensitive data if needed, though 'myself' usually implies permission to see own data.
             // keeping it simple for now, but ensuring consistent shape.
             const safeData = {
@@ -341,7 +342,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
             };
         }
         if (uri === "jira://projects") {
-            const data = await api.get('/project/search?maxResults=50');
+            const data = await api.get(`${API.PROJECT.SEARCH}?maxResults=50`);
             const projects = (data.values || []).map((p) => ({
                 key: p.key,
                 name: p.name,
@@ -379,7 +380,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (name === "jira_list_issues") {
             const jql = args.jql || "";
             const limit = args.limit || 10;
-            const data = await api.post('/search/jql', {
+            const data = await api.post(API.SEARCH.JQL, {
                 jql,
                 maxResults: limit,
                 fields: ['summary', 'status', 'assignee', 'priority', 'created', 'updated']
@@ -400,7 +401,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         // ── jira_get_issue ──────────────────────────────────
         if (name === "jira_get_issue") {
-            const data = await api.get(`/issue/${args.issueKey}`);
+            const data = await api.get(API.ISSUE.GET(args.issueKey));
             // Return a cleaner summary for agents
             const result = {
                 key: data.key,
@@ -444,7 +445,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (args.assigneeId) {
                 body.fields.assignee = { accountId: args.assigneeId };
             }
-            const data = await api.post('/issue', body);
+            const data = await api.post(API.ISSUE.BASE, body);
             return {
                 content: [{ type: "text", text: JSON.stringify({ key: data.key, self: data.self }, null, 2) }]
             };
@@ -453,8 +454,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (name === "jira_transition_issue") {
             if (!args.transitionId) {
                 // List available transitions
-                const transData = await api.get(`/issue/${args.issueKey}/transitions`);
-                const issue = await api.get(`/issue/${args.issueKey}?fields=summary,status`);
+                const transData = await api.get(API.ISSUE.TRANSITIONS(args.issueKey));
+                const issue = await api.get(`${API.ISSUE.GET(args.issueKey)}?fields=summary,status`);
                 const result = {
                     issueKey: args.issueKey,
                     summary: issue.fields.summary,
@@ -470,7 +471,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 };
             }
             // Execute transition
-            await api.post(`/issue/${args.issueKey}/transitions`, {
+            await api.post(API.ISSUE.TRANSITIONS(args.issueKey), {
                 transition: { id: args.transitionId }
             });
             return {
@@ -482,10 +483,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             let accountId = args.accountId;
             // Resolve "me" to actual account ID
             if (accountId === 'me') {
-                const myself = await api.get('/myself');
+                const myself = await api.get(API.USER.MYSELF);
                 accountId = myself.accountId;
             }
-            await api.put(`/issue/${args.issueKey}/assignee`, {
+            await api.put(API.ISSUE.ASSIGNEE(args.issueKey), {
                 accountId: accountId || null
             });
             return {
@@ -494,7 +495,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         // ── jira_add_comment ────────────────────────────────
         if (name === "jira_add_comment") {
-            const data = await api.post(`/issue/${args.issueKey}/comment`, {
+            const data = await api.post(API.ISSUE.COMMENT(args.issueKey), {
                 body: textToADF(args.body)
             });
             return {
@@ -513,7 +514,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (args.assigneeId) {
                 let accId = args.assigneeId;
                 if (accId === 'me') {
-                    const myself = await api.get('/myself');
+                    const myself = await api.get(API.USER.MYSELF);
                     accId = myself.accountId;
                 }
                 else if (accId === 'none') {
@@ -527,14 +528,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     isError: true
                 };
             }
-            await api.put(`/issue/${args.issueKey}`, updateBody);
+            await api.put(API.ISSUE.GET(args.issueKey), updateBody);
             return {
                 content: [{ type: "text", text: JSON.stringify({ success: true, issueKey: args.issueKey }) }]
             };
         }
         // ── jira_search_users ───────────────────────────────
         if (name === "jira_search_users") {
-            const users = await api.get(`/user/search?query=${encodeURIComponent(args.query)}`);
+            const users = await api.get(`${API.USER.SEARCH}?query=${encodeURIComponent(args.query)}`);
             const results = (users || []).map((u) => ({
                 accountId: u.accountId,
                 displayName: u.displayName,
@@ -548,7 +549,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         // ── jira_myself ─────────────────────────────────────
         if (name === "jira_myself") {
-            const myself = await api.get('/myself');
+            const myself = await api.get(API.USER.MYSELF);
             const result = {
                 accountId: myself.accountId,
                 displayName: myself.displayName,
@@ -564,7 +565,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // ── jira_list_projects ──────────────────────────────
         if (name === "jira_list_projects") {
             const limit = args.limit || 50;
-            const data = await api.get(`/project/search?maxResults=${limit}`);
+            const data = await api.get(`${API.PROJECT.SEARCH}?maxResults=${limit}`);
             const projects = (data.values || []).map((p) => ({
                 key: p.key,
                 name: p.name,
@@ -600,7 +601,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (args.comment) {
                 body.comment = textToADF(args.comment);
             }
-            await api.post(`/issue/${args.issueKey}/worklog`, body);
+            await api.post(API.ISSUE.WORKLOG(args.issueKey), body);
             return {
                 content: [{ type: "text", text: JSON.stringify({ success: true, issueKey: args.issueKey, timeSpent: args.timeSpent }) }]
             };
@@ -608,7 +609,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // ── jira_create_subtask ─────────────────────────────
         if (name === "jira_create_subtask") {
             // 1. Fetch parent to get project
-            const parent = await api.get(`/issue/${args.parentKey}?fields=project`);
+            const parent = await api.get(`${API.ISSUE.GET(args.parentKey)}?fields=project`);
             const projectKey = parent.fields.project.key;
             // 2. Find subtask issue type
             const meta = await api.get(`/issue/createmeta/${projectKey}/issuetypes`);
@@ -636,12 +637,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (args.assigneeId) {
                 let accId = args.assigneeId;
                 if (accId === 'me') {
-                    const myself = await api.get('/myself');
+                    const myself = await api.get(API.USER.MYSELF);
                     accId = myself.accountId;
                 }
                 body.fields.assignee = { accountId: accId };
             }
-            const data = await api.post('/issue', body);
+            const data = await api.post(API.ISSUE.BASE, body);
             return {
                 content: [{ type: "text", text: JSON.stringify({ key: data.key, self: data.self }, null, 2) }]
             };
@@ -656,7 +657,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 const file = await fs.openAsBlob(filePath);
                 const formData = new FormData();
                 formData.append("file", file, path.basename(filePath));
-                const result = await api.upload(`/issue/${args.issueKey}/attachments`, formData);
+                const result = await api.upload(API.ISSUE.ATTACHMENTS(args.issueKey), formData);
                 return {
                     content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
                 };
