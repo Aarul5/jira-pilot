@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { api } from '../services/api-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import fs from 'fs';
 import path from 'path';
 import { validateIssueKey } from '../utils/validators.js';

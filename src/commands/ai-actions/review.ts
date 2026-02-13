@@ -1,6 +1,6 @@
 import chalk from 'chalk';
-import ora from 'ora';
-import axios from 'axios';
+import ora from '../../utils/spinner.js';
+import { HttpClient } from '../../utils/http.js';
 import { execSync } from 'child_process';
 import { api } from '../../services/api-service.js';
 import { aiService } from '../../services/ai-service.js';
@@ -52,7 +52,8 @@ export async function reviewAction(issueKey: string, options: any) {
 
         // 3. Search GitHub PRs
         // We search for PRs that mention the issue key in title or branch name
-        const searchRes = await axios.get(`https://api.github.com/search/issues`, {
+        const http = new HttpClient();
+        const searchRes = await http.get(`https://api.github.com/search/issues`, {
             params: {
                 q: `repo:${repoOwner}/${repoName} is:pr ${issueKey}`
             },
@@ -73,7 +74,7 @@ export async function reviewAction(issueKey: string, options: any) {
         spinner.text = `Analyzing PR #${pr.number}: ${pr.title}...`;
 
         // 4. Fetch Diff
-        const diffRes = await axios.get(pr.pull_request.url, {
+        const diffRes = await http.get(pr.pull_request.url, {
             headers: {
                 'Authorization': `token ${githubToken}`,
                 'Accept': 'application/vnd.github.v3.diff'

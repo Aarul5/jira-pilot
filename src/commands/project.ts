@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import { Table } from 'cmd-table';
 import { api } from '../services/api-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import { handleCommandError } from '../utils/error-handler.js';
 
 export function registerProjectCommand(program: Command) {
@@ -37,11 +37,16 @@ Common Actions:
                 }
 
                 const table = new Table({
-                    head: [chalk.bold('Key'), chalk.bold('Name'), chalk.bold('Leader'), chalk.bold('Style')]
+                    columns: [
+                        { name: chalk.bold('Key') },
+                        { name: chalk.bold('Name') },
+                        { name: chalk.bold('Leader') },
+                        { name: chalk.bold('Style') }
+                    ]
                 });
 
                 data.values.forEach((p: any) => {
-                    table.push([
+                    table.addRow([
                         chalk.cyan(p.key),
                         p.name,
                         p.lead ? p.lead.displayName : 'N/A',
@@ -49,7 +54,7 @@ Common Actions:
                     ]);
                 });
 
-                console.log(table.toString());
+                console.log(table.render());
             } catch (e: any) {
                 handleCommandError(spinner, e, 'Failed to list projects');
             }

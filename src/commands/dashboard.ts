@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Table from 'cli-table3';
-import ora from 'ora';
+import { Table } from 'cmd-table';
+import ora from '../utils/spinner.js';
 import enquirer from 'enquirer';
 import { api } from '../services/api-service.js';
 import { handleCommandError } from '../utils/error-handler.js';
@@ -96,11 +96,17 @@ export function registerDashboardCommand(program: Command) {
 
                     if (issues.length > 0) {
                         const table = new Table({
-                            head: [chalk.bold('Key'), chalk.bold('Type'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Priority')]
+                            columns: [
+                                { name: chalk.bold('Key') },
+                                { name: chalk.bold('Type') },
+                                { name: chalk.bold('Summary') },
+                                { name: chalk.bold('Status') },
+                                { name: chalk.bold('Priority') }
+                            ]
                         });
 
                         issues.forEach((i: any) => {
-                            table.push([
+                            table.addRow([
                                 chalk.cyan(i.key),
                                 i.fields.issuetype?.name || '',
                                 i.fields.summary ? (i.fields.summary.length > 40 ? i.fields.summary.substring(0, 37) + '...' : i.fields.summary) : '',
@@ -108,7 +114,7 @@ export function registerDashboardCommand(program: Command) {
                                 getPriorityColor(i.fields.priority?.name || '', i.fields.priority?.name || '')
                             ]);
                         });
-                        console.log(table.toString());
+                        console.log(table.render());
                     } else {
                         console.log(chalk.green('  🎉 No open issues — nice work!'));
                     }

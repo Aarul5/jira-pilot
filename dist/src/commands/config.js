@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import enquirer from 'enquirer';
 import { setCredentials, getCredentials, clearCredentials, saveProfile, loadProfile, deleteProfile, listProfiles, getActiveProfile } from '../utils/config.js';
 import ConfigStore from '../utils/config-store.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import { api } from '../services/api-service.js';
 export function registerConfigCommand(program) {
     const configCmd = new Command('config')

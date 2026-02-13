@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import enquirer from 'enquirer';
 import { api } from '../services/api-service.js';
 import { aiService } from '../services/ai-service.js';

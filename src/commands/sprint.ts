@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import { Table } from 'cmd-table';
 import { api } from '../services/api-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import enquirer from 'enquirer';
 import { handleCommandError } from '../utils/error-handler.js';
 
@@ -56,11 +56,16 @@ Common Actions:
                 }
 
                 const table = new Table({
-                    head: [chalk.bold('ID'), chalk.bold('Name'), chalk.bold('State'), chalk.bold('Dates')]
+                    columns: [
+                        { name: chalk.bold('ID') },
+                        { name: chalk.bold('Name') },
+                        { name: chalk.bold('State') },
+                        { name: chalk.bold('Dates') }
+                    ]
                 });
 
                 data.values.forEach((s: any) => {
-                    table.push([
+                    table.addRow([
                         s.id,
                         s.name,
                         s.state === 'active' ? chalk.green(s.state) : s.state,
@@ -68,7 +73,7 @@ Common Actions:
                     ]);
                 });
 
-                console.log(table.toString());
+                console.log(table.render());
 
             } catch (e: any) {
                 handleCommandError(spinner, e, 'Failed to list sprints');
@@ -131,10 +136,16 @@ Examples:
                 }
 
                 const table = new Table({
-                    head: [chalk.bold('Key'), chalk.bold('Summary'), chalk.bold('Status'), chalk.bold('Assignee'), chalk.bold('Priority')]
+                    columns: [
+                        { name: chalk.bold('Key') },
+                        { name: chalk.bold('Summary') },
+                        { name: chalk.bold('Status') },
+                        { name: chalk.bold('Assignee') },
+                        { name: chalk.bold('Priority') }
+                    ]
                 });
                 issues.issues.forEach((i: any) => {
-                    table.push([
+                    table.addRow([
                         chalk.cyan(i.key),
                         i.fields.summary ? (i.fields.summary.length > 50 ? i.fields.summary.substring(0, 47) + '...' : i.fields.summary) : '',
                         i.fields.status?.name || '',
@@ -142,7 +153,7 @@ Examples:
                         i.fields.priority?.name || ''
                     ]);
                 });
-                console.log(table.toString());
+                console.log(table.render());
                 console.log(chalk.grey(`${issues.issues.length} issue(s) in sprint`));
 
             } catch (e: any) {

@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
 import { api } from '../services/api-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import enquirer from 'enquirer';
 import { validateIssueKey } from '../utils/validators.js';
 import { handleCommandError } from '../utils/error-handler.js';

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { HttpClient } from '../utils/http.js';
 import chalk from 'chalk';
 import { getCredentials } from '../utils/config.js';
 export class ApiService {
@@ -19,25 +19,27 @@ export class ApiService {
         this._domain = match ? match[0].replace(/\/$/, '') : jiraUrl;
         const authHeader = `Basic ${Buffer.from(`${email}:${apiToken}`).toString('base64')}`;
         // Standard REST API v3 client
-        this.client = axios.create({
+        this.client = new HttpClient({
             baseURL: `${this._domain}/rest/api/3`,
             headers: {
                 'Authorization': authHeader,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Accept': 'application/json'
             }
         });
         // Agile REST API v1 client (for boards, sprints, etc.)
-        this.agileClient = axios.create({
+        this.agileClient = new HttpClient({
             baseURL: `${this._domain}/rest/agile/1.0`,
             headers: {
                 'Authorization': authHeader,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
+                'Accept': 'application/json'
             }
         });
-        // Shared response interceptor
-        const errorInterceptor = (error) => {
+    }
+    async handleRequest(request) {
+        try {
+            return await request;
+        }
+        catch (error) {
             if (error.response) {
                 if (error.response.status === 401) {
                     console.error(chalk.red('Authentication failed. Please check your credentials using "jira config".'));
@@ -46,10 +48,8 @@ export class ApiService {
                     console.error(chalk.red('Access denied. You may not have permission for this resource.'));
                 }
             }
-            return Promise.reject(error);
-        };
-        this.client.interceptors.response.use((r) => r, errorInterceptor);
-        this.agileClient.interceptors.response.use((r) => r, errorInterceptor);
+            throw error;
+        }
     }
     /** @returns {string} The Jira domain URL */
     get domain() {
@@ -66,23 +66,32 @@ export class ApiService {
     // ── Standard REST API v3 Methods ────────────────────────────────
     async get(url, config = {}) {
         this.ensureClient();
-        const response = await this.client.get(url, config);
+        const response = await this.handleRequest(this.client.get(url, config));
         return response.data;
     }
     async post(url, data, config = {}) {
         this.ensureClient();
-        const response = await this.client.post(url, data, config);
+        const response = await this.handleRequest(this.client.post(url, data, config));
         return response.data;
     }
     async put(url, data, config = {}) {
         this.ensureClient();
-        const response = await this.client.put(url, data, config);
+        const response = await this.handleRequest(this.client.put(url, data, config));
         return response.data;
     }
     async delete(url, config = {}) {
         this.ensureClient();
-        const response = await this.client.delete(url, config);
+        const response = await this.handleRequest(this.client.delete(url, config));
         return response.data;
+    }
+    async search(jql, startAt = 0, maxResults = 50) {
+        return this.post('/search/jql', {
+            jql,
+            startAt,
+            maxResults,
+            fields: ['summary', 'status', 'assignee', 'priority', 'issuetype', 'created', 'updated', 'project'],
+            validation: 'warn'
+        });
     }
     async upload(url, formData) {
         this.ensureClient();
@@ -96,18 +105,18 @@ export class ApiService {
             Object.assign(headers, formData.getHeaders());
         }
         const config = { headers };
-        const response = await this.client.post(url, formData, config);
+        const response = await this.handleRequest(this.client.post(url, formData, config));
         return response.data;
     }
     // ── Agile REST API v1 Methods ───────────────────────────────────
     async agileGet(url, config = {}) {
         this.ensureClient();
-        const response = await this.agileClient.get(url, config);
+        const response = await this.handleRequest(this.agileClient.get(url, config));
         return response.data;
     }
     async agilePost(url, data, config = {}) {
         this.ensureClient();
-        const response = await this.agileClient.post(url, data, config);
+        const response = await this.handleRequest(this.agileClient.post(url, data, config));
         return response.data;
     }
 }

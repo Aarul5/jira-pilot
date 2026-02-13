@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import { Table } from 'cmd-table';
 import { api } from '../services/api-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import { handleCommandError } from '../utils/error-handler.js';
 
 export function registerBoardCommand(program: Command) {
@@ -51,11 +51,16 @@ Common Actions:
                 }
 
                 const table = new Table({
-                    head: [chalk.bold('ID'), chalk.bold('Name'), chalk.bold('Type'), chalk.bold('Project')]
+                    columns: [
+                        { name: chalk.bold('ID') },
+                        { name: chalk.bold('Name') },
+                        { name: chalk.bold('Type') },
+                        { name: chalk.bold('Project') }
+                    ]
                 });
 
                 data.values.forEach((b: any) => {
-                    table.push([
+                    table.addRow([
                         b.id,
                         b.name,
                         b.type,
@@ -63,7 +68,7 @@ Common Actions:
                     ]);
                 });
 
-                console.log(table.toString());
+                console.log(table.render());
                 console.log(chalk.grey(`Showing ${data.values.length} board(s)`));
 
             } catch (e: any) {

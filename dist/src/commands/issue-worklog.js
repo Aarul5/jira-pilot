@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import Table from 'cli-table3';
+import { Table } from 'cmd-table';
 import { api } from '../services/api-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import { textToADF } from '../utils/text-to-adf.js';
 import { validateIssueKey } from '../utils/validators.js';
 import { handleCommandError } from '../utils/error-handler.js';
@@ -62,17 +62,22 @@ Examples:
             }
             console.log(chalk.bold(`\nWorklogs for ${chalk.cyan(issueKey)}:`));
             const table = new Table({
-                head: [chalk.bold('Author'), chalk.bold('Time Spent'), chalk.bold('Date'), chalk.bold('Comment')]
+                columns: [
+                    { name: chalk.bold('Author') },
+                    { name: chalk.bold('Time Spent') },
+                    { name: chalk.bold('Date') },
+                    { name: chalk.bold('Comment') }
+                ]
             });
             data.worklogs.forEach((w) => {
-                table.push([
+                table.addRow([
                     w.author?.displayName || 'Unknown',
                     w.timeSpent,
                     w.started.split('T')[0],
                     w.comment ? (parseADF(w.comment)?.substring(0, 50) + '...') : ''
                 ]);
             });
-            console.log(table.toString());
+            console.log(table.render());
         }
         catch (e) {
             handleCommandError(spinner, e, 'Failed to list worklogs');

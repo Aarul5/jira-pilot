@@ -4,6 +4,7 @@ export declare class ApiService {
     private _domain;
     constructor();
     init(): void;
+    private handleRequest;
     /** @returns {string} The Jira domain URL */
     get domain(): string | null;
     ensureClient(): void;
@@ -11,6 +12,7 @@ export declare class ApiService {
     post(url: string, data: any, config?: any): Promise<any>;
     put(url: string, data: any, config?: any): Promise<any>;
     delete(url: string, config?: any): Promise<any>;
+    search(jql: string, startAt?: number, maxResults?: number): Promise<any>;
     upload(url: string, formData: any): Promise<any>;
     agileGet(url: string, config?: any): Promise<any>;
     agilePost(url: string, data: any, config?: any): Promise<any>;
