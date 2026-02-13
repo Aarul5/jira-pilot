@@ -1,0 +1,1 @@
+{"version":3,"file":"tui.js","sourceRoot":"","sources":["../../../src/commands/tui.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,QAAQ,EAAE,MAAM,iBAAiB,CAAC;AAE3C,MAAM,UAAU,kBAAkB,CAAC,OAAgB;IAC/C,OAAO;SACF,OAAO,CAAC,KAAK,CAAC;SACd,WAAW,CAAC,gCAAgC,CAAC;SAC7C,MAAM,CAAC,KAAK,IAAI,EAAE;QACf,QAAQ,EAAE,CAAC;IACf,CAAC,CAAC,CAAC;AACX,CAAC"}

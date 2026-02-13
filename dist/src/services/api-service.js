@@ -84,6 +84,17 @@ export class ApiService {
         const response = await this.client.delete(url, config);
         return response.data;
     }
+    async search(jql, startAt = 0, maxResults = 50) {
+        // CHANGE-2046: Using GET /rest/api/3/search/jql
+        return this.get('/search/jql', {
+            params: {
+                jql,
+                maxResults,
+                fields: 'summary,status,assignee,priority,issuetype,created,updated,project',
+                validation: 'warn'
+            }
+        });
+    }
     async upload(url, formData) {
         this.ensureClient();
         // Jira requires this header for attachments

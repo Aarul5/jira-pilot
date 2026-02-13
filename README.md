@@ -113,6 +113,29 @@ jira issue create
 
 ---
 
+## 🖥️ Text User Interface (TUI)
+
+Experience Jira in a persistent, interactive terminal interface.
+
+```bash
+jira tui
+```
+
+**Key Features:**
+*   **Dashboard**: Overview of your assigned work.
+*   **Issue Navigator**: Browse, filter, and view issues.
+*   **Kanban Boards**: Visualize and manage work on Agile boards.
+*   **Interactive**: Use arrow keys to navigate rows and columns.
+
+**Navigation Shortcuts:**
+*   `←` / `→` : Switch Tabs (Dashboard, Issues, Boards) or Board Columns
+*   `↑` / `↓` : Navigate Lists
+*   `Enter` : Select / View Details
+*   `Esc` / `b` : Back
+*   `q` : Quit
+
+---
+
 ## 📊 My Dashboard
 
 Start your day with a high-level overview of what's on your plate.

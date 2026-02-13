@@ -103,6 +103,18 @@ export class ApiService {
         return response.data;
     }
 
+    async search(jql: string, startAt: number = 0, maxResults: number = 50) {
+        // CHANGE-2046: Using GET /rest/api/3/search/jql
+        return this.get('/search/jql', {
+            params: {
+                jql,
+                maxResults,
+                fields: 'summary,status,assignee,priority,issuetype,created,updated,project',
+                validation: 'warn'
+            }
+        });
+    }
+
     async upload(url: string, formData: any) {
         this.ensureClient();
         // Jira requires this header for attachments
