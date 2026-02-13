@@ -1,7 +1,8 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import Spinner from 'ink-spinner';
+import SpinnerOriginal from 'ink-spinner';
+const Spinner = SpinnerOriginal;
 import { api } from '../../services/api-service.js';
 import IssueDetail from './IssueDetail.js';
 export default function IssueList() {
@@ -29,10 +30,10 @@ export default function IssueList() {
         if (selectedIssueKey)
             return; // Let Detail view handle input if active
         if (key.upArrow) {
-            setSelectedIndex(prev => Math.max(0, prev - 1));
+            setSelectedIndex((prev) => Math.max(0, prev - 1));
         }
         if (key.downArrow) {
-            setSelectedIndex(prev => Math.min(issues.length - 1, prev + 1));
+            setSelectedIndex((prev) => Math.min(issues.length - 1, prev + 1));
         }
         if (key.return) {
             if (issues[selectedIndex]) {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import Spinner from 'ink-spinner';
+import SpinnerOriginal from 'ink-spinner';
+const Spinner = SpinnerOriginal as any;
 import { api } from '../../services/api-service.js';
 
 interface KanbanBoardProps {
@@ -72,10 +73,10 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             onBack();
         }
         if (key.leftArrow) {
-            setActiveColumnIndex(prev => Math.max(0, prev - 1));
+            setActiveColumnIndex((prev: number) => Math.max(0, prev - 1));
         }
         if (key.rightArrow) {
-            setActiveColumnIndex(prev => Math.min(columns.length - 1, prev + 1));
+            setActiveColumnIndex((prev: number) => Math.min(columns.length - 1, prev + 1));
         }
     });
 
@@ -99,7 +100,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             </Box>
 
             <Box flexDirection="row" flexGrow={1}>
-                {columns.map((col, index) => {
+                {columns.map((col: any, index: number) => {
                     const isActive = index === activeColumnIndex;
                     const colIssues = issues[col.name] || [];
 

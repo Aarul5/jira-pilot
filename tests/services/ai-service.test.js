@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock axios
-vi.mock('axios', () => ({
-    default: {
-        post: vi.fn()
-    }
+const mocks = vi.hoisted(() => ({
+    mockPost: vi.fn()
 }));
+
+vi.mock('../../src/utils/http.js', () => {
+    return {
+        HttpClient: function () {
+            return { post: mocks.mockPost };
+        }
+    };
+});
 
 // Mock config
 vi.mock('../../src/utils/config.js', () => ({
@@ -20,7 +25,12 @@ describe('AiService', () => {
     let AiService, aiService;
 
     beforeEach(async () => {
+        vi.clearAllMocks();
         vi.resetModules();
+
+        // Reset the mock implementation for each test
+        mocks.mockPost.mockReset();
+
         const module = await import('../../src/services/ai-service.js');
         AiService = module.AiService;
         aiService = module.aiService;
@@ -60,8 +70,7 @@ describe('AiService', () => {
     });
 
     it('should route to openai provider', async () => {
-        const axios = (await import('axios')).default;
-        axios.post.mockResolvedValueOnce({
+        mocks.mockPost.mockResolvedValueOnce({
             data: { choices: [{ message: { content: 'AI response' } }] }
         });
 
@@ -72,7 +81,7 @@ describe('AiService', () => {
         const result = await service.generate('Hello');
 
         expect(result).toBe('AI response');
-        expect(axios.post).toHaveBeenCalledWith(
+        expect(mocks.mockPost).toHaveBeenCalledWith(
             'https://api.openai.com/v1/chat/completions',
             expect.objectContaining({ model: 'gpt-4o' }),
             expect.any(Object)
@@ -80,8 +89,7 @@ describe('AiService', () => {
     });
 
     it('should route to gemini provider', async () => {
-        const axios = (await import('axios')).default;
-        axios.post.mockResolvedValueOnce({
+        mocks.mockPost.mockResolvedValueOnce({
             data: { candidates: [{ content: { parts: [{ text: 'Gemini response' }] } }] }
         });
 
@@ -92,7 +100,7 @@ describe('AiService', () => {
         const result = await service.generate('Hello');
 
         expect(result).toBe('Gemini response');
-        expect(axios.post).toHaveBeenCalledWith(
+        expect(mocks.mockPost).toHaveBeenCalledWith(
             expect.stringContaining('generativelanguage.googleapis.com'),
             expect.any(Object),
             expect.any(Object)
@@ -100,8 +108,7 @@ describe('AiService', () => {
     });
 
     it('should route to anthropic provider', async () => {
-        const axios = (await import('axios')).default;
-        axios.post.mockResolvedValueOnce({
+        mocks.mockPost.mockResolvedValueOnce({
             data: { content: [{ type: 'text', text: 'Claude response' }] }
         });
 
@@ -112,7 +119,7 @@ describe('AiService', () => {
         const result = await service.generate('Hello');
 
         expect(result).toBe('Claude response');
-        expect(axios.post).toHaveBeenCalledWith(
+        expect(mocks.mockPost).toHaveBeenCalledWith(
             'https://api.anthropic.com/v1/messages',
             expect.any(Object),
             expect.objectContaining({

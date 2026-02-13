@@ -1,7 +1,8 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import Spinner from 'ink-spinner';
+import SpinnerOriginal from 'ink-spinner';
+const Spinner = SpinnerOriginal;
 import { api } from '../../services/api-service.js';
 import { renderADF } from '../utils/adf-render.js';
 export default function IssueDetail({ issueKey, onBack }) {

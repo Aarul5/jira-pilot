@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import ora from 'ora';
+import ora from '../../utils/spinner.js';
 import { api } from '../../services/api-service.js';
 import { aiService } from '../../services/ai-service.js';
 import { handleCommandError } from '../../utils/error-handler.js';

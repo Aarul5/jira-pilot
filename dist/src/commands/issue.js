@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import { api } from '../services/api-service.js';
 import { aiService } from '../services/ai-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import enquirer from 'enquirer';
 import { parseADF } from '../utils/adf-parser.js';
 import { textToADF } from '../utils/text-to-adf.js';
@@ -195,7 +195,7 @@ Examples:
             if (issue.fields.comment && issue.fields.comment.comments.length > 0) {
                 console.log(chalk.bold('\nComments:'));
                 issue.fields.comment.comments.forEach((c) => {
-                    console.log(chalk.cyan(c.author.displayName) + ': ' + c.body);
+                    console.log(chalk.cyan(c.author.displayName) + ': ' + (parseADF(c.body) || ''));
                 });
             }
             console.log('');
@@ -1078,13 +1078,37 @@ Examples:
         }
         const spinner = ora(`Fetching parent ${parentKey}...`).start();
         try {
-            const parent = await api.get(`/issue/${parentKey}?fields=project,summary`);
+            const parent = await api.get(`/issue/${parentKey}?fields=project,summary,issuetype,id`);
             const projectKey = parent.fields.project.key;
+            if (parent.fields.issuetype.subtask) {
+                spinner.fail(chalk.red(`Issue ${parentKey} is already a subtask. Cannot create a subtask of a subtask.`));
+                return;
+            }
+            if (parent.fields.issuetype.name === 'Epic') {
+                spinner.fail(chalk.red(`Issue ${parentKey} is an Epic. Epics cannot have sub-tasks.`));
+                console.log(chalk.yellow('Tip: To add work to an Epic, create a standard issue (Story, Task) and link it to the Epic.'));
+                return;
+            }
             spinner.text = 'Fetching subtask types...';
             // Get valid subtask types for project
-            const meta = await api.get(`/issue/createmeta/${projectKey}/issuetypes`);
-            const allTypes = meta.issueTypes || meta.values || [];
-            const subtaskTypes = allTypes.filter((t) => t.subtask);
+            let subtaskTypes = [];
+            try {
+                // Correct V3 endpoint for creation metadata
+                const meta = await api.get(`/issue/createmeta?projectKeys=${projectKey}`);
+                if (meta.projects && meta.projects.length > 0) {
+                    subtaskTypes = meta.projects[0].issuetypes.filter((t) => t.subtask);
+                }
+            }
+            catch (err) {
+                // Fallback to project fetch
+                try {
+                    const proj = await api.get(`/project/${projectKey}`);
+                    subtaskTypes = (proj.issueTypes || []).filter((t) => t.subtask);
+                }
+                catch (e) {
+                    console.error(chalk.red('Failed to fetch project issue types.'));
+                }
+            }
             spinner.stop();
             if (subtaskTypes.length === 0) {
                 console.error(chalk.red(`No subtask types found in project ${projectKey}.`));
@@ -1118,13 +1142,14 @@ Examples:
             const issueBody = {
                 fields: {
                     project: { key: projectKey },
-                    parent: { key: parentKey },
+                    parent: { id: parent.id }, // Use ID instead of Key
                     issuetype: { id: subtaskTypeId },
                     summary: summary
                 }
             };
             if (priorityName)
                 issueBody.fields.priority = { name: priorityName };
+            // ... rest of assignee logic ...
             if (assigneeId === 'me') {
                 const me = await api.get('/myself');
                 issueBody.fields.assignee = { accountId: me.accountId };

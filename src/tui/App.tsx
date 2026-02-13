@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import BigText from 'ink-big-text';
-import Gradient from 'ink-gradient';
 import Dashboard from './screens/Dashboard.js';
 import IssueList from './screens/IssueList.js';
 import BoardList from './screens/BoardList.js';
@@ -31,9 +29,7 @@ export default function App() {
         <Box flexDirection="column" height="100%">
             {/* Header */}
             <Box borderStyle="classic" borderColor="blue" paddingX={1}>
-                <Gradient name="pastel">
-                    <BigText text="Jira Pilot" font="tiny" />
-                </Gradient>
+                <Text bold color="blue">Jira Pilot</Text>
                 <Box marginLeft={2} flexDirection="column" justifyContent="center">
                     <Text>Use <Text color="green">←/→</Text> to navigate tabs. Press <Text color="red">q</Text> to quit.</Text>
                 </Box>

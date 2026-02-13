@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
-import Spinner from 'ink-spinner';
+import SpinnerOriginal from 'ink-spinner';
+const Spinner = SpinnerOriginal as any;
 import { api } from '../../services/api-service.js';
 
 export default function Dashboard() {

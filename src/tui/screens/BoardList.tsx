@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import Spinner from 'ink-spinner';
+import SpinnerOriginal from 'ink-spinner';
+const Spinner = SpinnerOriginal as any;
 import { api } from '../../services/api-service.js';
 import KanbanBoard from './KanbanBoard.js';
 
@@ -29,10 +30,10 @@ export default function BoardList() {
         if (selectedBoardId) return;
 
         if (key.upArrow) {
-            setSelectedIndex(prev => Math.max(0, prev - 1));
+            setSelectedIndex((prev: number) => Math.max(0, prev - 1));
         }
         if (key.downArrow) {
-            setSelectedIndex(prev => Math.min(boards.length - 1, prev + 1));
+            setSelectedIndex((prev: number) => Math.min(boards.length - 1, prev + 1));
         }
         if (key.return) {
             if (boards[selectedIndex]) {
@@ -81,7 +82,7 @@ export default function BoardList() {
                 <Text bold underline>Select a Board ({selectedIndex + 1}/{boards.length})</Text>
             </Box>
 
-            {visibleBoards.map((board, index) => {
+            {visibleBoards.map((board: any, index: number) => {
                 const globalIndex = start + index;
                 const isSelected = globalIndex === selectedIndex;
 

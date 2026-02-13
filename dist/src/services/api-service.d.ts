@@ -4,6 +4,7 @@ export declare class ApiService {
     private _domain;
     constructor();
     init(): void;
+    private handleRequest;
     /** @returns {string} The Jira domain URL */
     get domain(): string | null;
     ensureClient(): void;

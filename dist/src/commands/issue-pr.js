@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import enquirer from 'enquirer';
 import { api } from '../services/api-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { validateIssueKey } from '../utils/validators.js';

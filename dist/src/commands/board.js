@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { api } from '../services/api-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import { handleCommandError } from '../utils/error-handler.js';
 export function registerBoardCommand(program) {
     const boardCmd = new Command('board')

@@ -1,4 +1,4 @@
-import axios from 'axios';
+import { HttpClient } from '../utils/http.js';
 import { getCredentials } from '../utils/config.js';
 
 export class AiService {
@@ -89,7 +89,8 @@ Today is ${new Date().toISOString().split('T')[0]}.`;
 
     async callOpenAI(key: string, prompt: string): Promise<string> {
         try {
-            const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+            const client = new HttpClient();
+            const response = await client.post('https://api.openai.com/v1/chat/completions', {
                 model: 'gpt-4o',
                 messages: [{ role: 'user', content: prompt }],
                 temperature: 0.7
@@ -107,8 +108,9 @@ Today is ${new Date().toISOString().split('T')[0]}.`;
             // Gemini REST API — uses generativelanguage.googleapis.com
             const model = 'gemini-2.0-flash';
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+            const client = new HttpClient();
 
-            const response = await axios.post(url, {
+            const response = await client.post(url, {
                 contents: [{
                     parts: [{ text: prompt }]
                 }],
@@ -137,7 +139,8 @@ Today is ${new Date().toISOString().split('T')[0]}.`;
     async callAnthropic(key: string, prompt: string): Promise<string> {
         try {
             // Anthropic Messages API
-            const response = await axios.post('https://api.anthropic.com/v1/messages', {
+            const client = new HttpClient();
+            const response = await client.post('https://api.anthropic.com/v1/messages', {
                 model: 'claude-sonnet-4-20250514',
                 max_tokens: 2048,
                 messages: [{ role: 'user', content: prompt }]

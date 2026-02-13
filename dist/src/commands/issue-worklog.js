@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import { api } from '../services/api-service.js';
-import ora from 'ora';
+import ora from '../utils/spinner.js';
 import { textToADF } from '../utils/text-to-adf.js';
 import { validateIssueKey } from '../utils/validators.js';
 import { handleCommandError } from '../utils/error-handler.js';

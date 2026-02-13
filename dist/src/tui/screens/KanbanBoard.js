@@ -1,7 +1,8 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import Spinner from 'ink-spinner';
+import SpinnerOriginal from 'ink-spinner';
+const Spinner = SpinnerOriginal;
 import { api } from '../../services/api-service.js';
 export default function KanbanBoard({ boardId, onBack }) {
     const [loading, setLoading] = useState(true);
@@ -63,10 +64,10 @@ export default function KanbanBoard({ boardId, onBack }) {
             onBack();
         }
         if (key.leftArrow) {
-            setActiveColumnIndex(prev => Math.max(0, prev - 1));
+            setActiveColumnIndex((prev) => Math.max(0, prev - 1));
         }
         if (key.rightArrow) {
-            setActiveColumnIndex(prev => Math.min(columns.length - 1, prev + 1));
+            setActiveColumnIndex((prev) => Math.min(columns.length - 1, prev + 1));
         }
     });
     if (loading) {

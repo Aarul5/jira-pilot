@@ -1,7 +1,8 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import Spinner from 'ink-spinner';
+import SpinnerOriginal from 'ink-spinner';
+const Spinner = SpinnerOriginal;
 import { api } from '../../services/api-service.js';
 import KanbanBoard from './KanbanBoard.js';
 export default function BoardList() {
@@ -28,10 +29,10 @@ export default function BoardList() {
         if (selectedBoardId)
             return;
         if (key.upArrow) {
-            setSelectedIndex(prev => Math.max(0, prev - 1));
+            setSelectedIndex((prev) => Math.max(0, prev - 1));
         }
         if (key.downArrow) {
-            setSelectedIndex(prev => Math.min(boards.length - 1, prev + 1));
+            setSelectedIndex((prev) => Math.min(boards.length - 1, prev + 1));
         }
         if (key.return) {
             if (boards[selectedIndex]) {

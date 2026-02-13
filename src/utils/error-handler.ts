@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { Ora } from 'ora';
+import { Spinner } from './spinner.js';
 
 /**
  * Standardized error handler for CLI commands.
@@ -9,7 +9,7 @@ import { Ora } from 'ora';
  * @param {Error} error - The error object
  * @param {string} [context] - Optional context (e.g., "Failed to list issues")
  */
-export function handleCommandError(spinner: Ora | null, error: any, context = 'Operation failed') {
+export function handleCommandError(spinner: Spinner | null, error: any, context = 'Operation failed') {
     // Handle user cancellation (Ctrl+C in enquirer)
     if (error === '' || (error && error.message === '')) {
         if (spinner) spinner.stop();
