@@ -1,15 +1,41 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema, ListResourceTemplatesRequestSchema, ListResourcesRequestSchema, ReadResourceRequestSchema, } from "@modelcontextprotocol/sdk/types.js";
 import { api } from "../services/api-service.js";
 import { textToADF } from "../utils/text-to-adf.js";
+import { readFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+// Load package.json for version
+const __dirname = dirname(fileURLToPath(import.meta.url));
+function getPackageVersion() {
+    const candidates = [
+        join(__dirname, "../../package.json"),
+        join(__dirname, "../../../package.json"),
+        join(process.cwd(), "package.json"),
+    ];
+    for (const p of candidates) {
+        if (!existsSync(p))
+            continue;
+        try {
+            const pkg = JSON.parse(readFileSync(p, "utf-8"));
+            if (typeof pkg.version === "string" && pkg.version)
+                return pkg.version;
+        }
+        catch { /* ignore */ }
+    }
+    return "0.0.0";
+}
+const version = getPackageVersion();
 // Initialize MCP Server
 const server = new Server({
     name: "jira-pilot",
-    version: "1.0.0",
+    version: version,
 }, {
     capabilities: {
         tools: {},
+        prompts: { listChanged: true },
+        resources: { subscribe: false, listChanged: true },
     },
 });
 // ── Tool Definitions ─────────────────────────────────────────────────
@@ -192,6 +218,159 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         ]
     };
 });
+// ── Prompt Definitions ────────────────────────────────────────────────
+server.setRequestHandler(ListPromptsRequestSchema, async () => {
+    return {
+        prompts: [
+            {
+                name: "jira-assist",
+                description: "A system prompt to help the LLM understand how to assist with Jira tasks.",
+            },
+            {
+                name: "jira-summarize-issue",
+                description: "Summarize a specific Jira issue.",
+                arguments: [
+                    {
+                        name: "issueKey",
+                        description: "The key of the issue to summarize (e.g., PROJ-123)",
+                        required: true
+                    }
+                ]
+            }
+        ]
+    };
+});
+server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    const { name, arguments: args } = request.params;
+    if (name === "jira-assist") {
+        return {
+            messages: [
+                {
+                    role: "user",
+                    content: {
+                        type: "text",
+                        text: `You are Jira Pilot, an intelligent assistant for Jira.
+Your goal is to help users manage their projects, issues, and workflows efficiently.
+
+Available Tools:
+- Use 'jira_list_issues' to find issues.
+- Use 'jira_get_issue' to see details.
+- Use 'jira_create_issue', 'jira_update_issue', 'jira_transition_issue' to modify.
+
+Guidelines:
+1. Always be concise and helpful.
+2. If the user asks to "fix" something, look for relevant issues first.
+3. When creating issues, ask for clarification if fields are missing (Project, Type).
+4. Use JQL for powerful searching.`
+                    }
+                }
+            ]
+        };
+    }
+    if (name === "jira-summarize-issue") {
+        const issueKey = args?.issueKey;
+        if (!issueKey) {
+            throw new Error("Missing required argument: issueKey");
+        }
+        return {
+            messages: [
+                {
+                    role: "user",
+                    content: {
+                        type: "text",
+                        text: `Please fetch details for Jira issue ${issueKey} using 'jira_get_issue', and then provide a concise summary of its status, priority, and recent activity.`
+                    }
+                }
+            ]
+        };
+    }
+    throw new Error(`Prompt not found: ${name}. Available: jira-assist, jira-summarize-issue`);
+});
+// ── Resource Templates ──────────────────────────────────────────────
+server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
+    return {
+        resourceTemplates: []
+    };
+});
+// ── Resource Definitions ──────────────────────────────────────────────
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+    return {
+        resources: [
+            {
+                uri: "jira://myself",
+                name: "My Profile",
+                description: "Details of the currently authenticated user.",
+                mimeType: "application/json"
+            },
+            {
+                uri: "jira://projects",
+                name: "All Projects",
+                description: "List of all accessible Jira projects.",
+                mimeType: "application/json"
+            }
+        ]
+    };
+});
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const { uri } = request.params;
+    const createEnvelope = (type, data) => ({
+        source: "jira-pilot",
+        type,
+        data,
+        fetchedAt: new Date().toISOString()
+    });
+    try {
+        if (uri === "jira://myself") {
+            const myself = await api.get('/myself');
+            // Mask sensitive data if needed, though 'myself' usually implies permission to see own data.
+            // keeping it simple for now, but ensuring consistent shape.
+            const safeData = {
+                accountId: myself.accountId,
+                displayName: myself.displayName,
+                active: myself.active,
+                timeZone: myself.timeZone,
+                // Only include email if present, or maybe mask it? User asked to be careful.
+                // We'll exclude email to be safe as per user request "do not include email".
+            };
+            return {
+                contents: [{
+                        uri,
+                        mimeType: "application/json",
+                        text: JSON.stringify(createEnvelope("myself", safeData), null, 2)
+                    }]
+            };
+        }
+        if (uri === "jira://projects") {
+            const data = await api.get('/project/search?maxResults=50');
+            const projects = (data.values || []).map((p) => ({
+                key: p.key,
+                name: p.name,
+                id: p.id,
+                style: p.style
+            }));
+            return {
+                contents: [{
+                        uri,
+                        mimeType: "application/json",
+                        text: JSON.stringify(createEnvelope("projects", projects), null, 2)
+                    }]
+            };
+        }
+        throw new Error(`Resource not found: ${uri}. Available: jira://myself, jira://projects`);
+    }
+    catch (e) {
+        // Handle Auth/Network errors specifically
+        if (e.response?.status === 401 || e.response?.status === 403) {
+            throw new Error(`Jira auth is missing or expired. Run 'jira config setup' to authenticate.`);
+        }
+        if (e.message.includes("Resource not found")) {
+            throw e; // Re-throw 404s we generated
+        }
+        // Upstream errors
+        const status = e.response?.status || "Unknown";
+        throw new Error(`Upstream Jira error (${status}): ${e.message}`);
+    }
+});
 // ── Tool Handlers ────────────────────────────────────────────────────
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
@@ -359,7 +538,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const results = (users || []).map((u) => ({
                 accountId: u.accountId,
                 displayName: u.displayName,
-                email: u.emailAddress,
+                // Email excluded for safety
+                // email: u.emailAddress, 
                 active: u.active
             }));
             return {
@@ -372,7 +552,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const result = {
                 accountId: myself.accountId,
                 displayName: myself.displayName,
-                email: myself.emailAddress,
+                // Email excluded for safety
+                // email: myself.emailAddress,
                 active: myself.active,
                 timeZone: myself.timeZone
             };
@@ -469,12 +650,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (name === "jira_add_attachment") {
             try {
                 // Dynamically import fs/path to avoid top-level node dependencies if this runs in browser-like env (unlikely but safe)
-                const { openAsBlob } = await import('node:fs');
-                const path = await import('node:path');
+                const fs = await import("node:fs");
+                const path = await import("node:path");
                 const filePath = args.filePath;
-                const file = await openAsBlob(filePath);
+                const file = await fs.openAsBlob(filePath);
                 const formData = new FormData();
-                formData.append('file', file, path.default.basename(filePath));
+                formData.append("file", file, path.basename(filePath));
                 const result = await api.upload(`/issue/${args.issueKey}/attachments`, formData);
                 return {
                     content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
